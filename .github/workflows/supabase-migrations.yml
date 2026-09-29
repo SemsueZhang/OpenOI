@@ -1,0 +1,87 @@
+name: Supabase migrations
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/supabase-migrations.yml'
+      - 'scripts/test-db-docker.sh'
+      - 'scripts/validate-migration-files.mjs'
+      - 'scripts/validate-supabase-db-url.mjs'
+      - 'scripts/check-production-migration-history.sql'
+      - 'scripts/baseline-migration-history.sql'
+      - 'scripts/test-db-pglite.mjs'
+      - 'supabase/migrations/**'
+      - 'tests/database/**'
+      - 'tests/validate-supabase-db-url.test.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/supabase-migrations.yml'
+      - 'scripts/test-db-docker.sh'
+      - 'scripts/validate-migration-files.mjs'
+      - 'scripts/validate-supabase-db-url.mjs'
+      - 'scripts/check-production-migration-history.sql'
+      - 'scripts/baseline-migration-history.sql'
+      - 'scripts/test-db-pglite.mjs'
+      - 'supabase/migrations/**'
+      - 'tests/database/**'
+      - 'tests/validate-supabase-db-url.test.mjs'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node scripts/validate-migration-files.mjs
+      - run: node --test tests/validate-supabase-db-url.test.mjs
+      - run: bash scripts/test-db-docker.sh
+
+  deploy:
+    needs: validate
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    env:
+      PGCONNECT_TIMEOUT: '15'
+    concurrency:
+      group: migration-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - run: node scripts/validate-migration-files.mjs
+      - name: Validate production database target
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: node scripts/validate-supabase-db-url.mjs
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Require historical migration rows
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: psql -X -v ON_ERROR_STOP=1 --dbname "$SUPABASE_DB_URL" --file scripts/check-production-migration-history.sql
+      - name: Preview production migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: npm exec --yes --package=supabase@2.118.0 -- supabase db push --db-url "$SUPABASE_DB_URL" --skip-vault --dry-run
+      - name: Apply production migrations
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: npm exec --yes --package=supabase@2.118.0 -- supabase db push --db-url "$SUPABASE_DB_URL" --skip-vault --yes

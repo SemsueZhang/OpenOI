@@ -61,13 +61,17 @@ npm run dev
 
 新项目在 SQL Editor 中按文件名顺序执行 `supabase/migrations/` 的全部文件。历史迁移保留旧模型以支持顺序升级，最后一份迁移将其转换为当前四张业务表：`profiles`、`problems`、`solutions`、`comments`。
 
-已有项目只执行尚未应用的迁移。当前托管项目已通过 SQL Editor 手动执行了三份迁移（含本轮 simplify_content），不能直接重跑 initial，也不要在未对齐迁移历史时直接运行 `supabase db push`。
+已有项目只执行尚未应用的迁移。当前托管项目已通过 SQL Editor 手动执行了三份迁移（含本轮 simplify_content），不能直接重跑 initial。仓库现提供 GitHub Actions 自动迁移流程，首次启用需要对齐迁移记录并设置一个 GitHub 环境密钥，详见 [自动迁移配置](docs/AUTOMIGRATION.md)。
 
 **本轮迁移会删除旧 Hack、投票、Hack 下的评论及做法的代码等已移除字段。执行前备份现有数据库并检查迁移文件。** 对保留的题目、做法及讨论，迁移不会静默截断内容，也不会伪造原文链接。存在超长正文/摘要/讨论、旧自定义标签或缺少原文链接的做法时，预检查会阻止升级；先整理数据并补齐链接，再重试。事务中执行，避免部分升级。详细预检查规则见最新 SQL 文件注释。
 
 四张业务表启用 RLS：匿名可读，登录用户可发布，只有作者可修改/删除自己的内容。列级权限保护作者、所属目标和创建时间。讨论仅关联做法，真实外键确保目标存在；删除题目级联删除做法和讨论，界面明确确认。
 
 字段长度、固定标签、URL 和目标限制同时由数据库执行，不能通过绕过网页表单跳过。Markdown 禁用原始 HTML、过滤 URL 协议，KaTeX 禁用可信命令。
+
+## 自动数据库迁移
+
+相关 SQL 推送到 main 后，GitHub Actions 先在隔离 PostgreSQL 验证，再执行生产迁移。PR 仅验证，生产任务串行运行。Vercel 仍独立自动部署，涉及新字段时请先完成数据库迁移，再提交依赖它的网站代码。首次密钥配置、历史登记、错误处理见 [docs/AUTOMIGRATION.md](docs/AUTOMIGRATION.md)。
 
 ## 邮箱认证
 

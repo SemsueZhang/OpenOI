@@ -22,6 +22,12 @@ try {
   await run('supabase/migrations/20260929000000_initial.sql', initial);
   await run('supabase/migrations/20260929010000_content_limits.sql');
   await run('tests/database/legacy_fixture.sql');
+  const history = read('scripts/baseline-migration-history.sql');
+  let earlyHistoryError;
+  try { await db.exec(history); } catch (error) { earlyHistoryError = error; }
+  assert(earlyHistoryError, 'History adoption must reject incomplete legacy schema');
+  await db.exec('rollback;');
+  console.log('PASS history adoption rejects incomplete schema');
 
   const migration = read('supabase/migrations/20260929020000_simplify_content.sql');
   let refusal;
@@ -51,6 +57,9 @@ try {
   console.log('PASS incompatible content preflight');
   await run('supabase/migrations/20260929020000_simplify_content.sql', migration);
   await run('tests/database/migration_preservation.sql');
+  await run('scripts/baseline-migration-history.sql', history);
+  await run('scripts/baseline-migration-history.sql', history);
+  assert.equal((await db.query('select count(*)::int n from supabase_migrations.schema_migrations')).rows[0].n, 3);
   await run('tests/database/acceptance.sql');
   await run('tests/database/content_limits.sql');
 } finally {

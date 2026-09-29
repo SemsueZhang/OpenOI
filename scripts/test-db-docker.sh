@@ -4,6 +4,7 @@ set -euo pipefail
 # An isolated, disposable PostgreSQL 15 check. No host port or persistent volume.
 cd "$(dirname "$0")/.."
 command -v docker >/dev/null || { echo 'Docker is required' >&2; exit 2; }
+node scripts/validate-migration-files.mjs
 
 image=${OPENOI_TEST_POSTGRES_IMAGE:-public.ecr.aws/docker/library/postgres:15}
 container_name="openoi-db-test-$$"
@@ -54,6 +55,17 @@ docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d po
   -c "alter table public.solutions add column original_url text; update public.solutions set original_url='https://example.org/solution' where id='c3000000-0000-4000-8000-000000000001'"
 docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/migrations/20260929020000_simplify_content.sql
 docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < tests/database/migration_preservation.sql
+docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < scripts/baseline-migration-history.sql
+docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < scripts/baseline-migration-history.sql
+docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < scripts/check-production-migration-history.sql
+
+# Apply every later migration to the same realistic legacy-upgrade fixture.
+for migration in supabase/migrations/*.sql; do
+  if [[ "$migration" > supabase/migrations/20260929020000_simplify_content.sql ]]; then
+    echo "Testing $migration"
+    docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < "$migration"
+  fi
+done
 
 printf '#!/usr/bin/env bash\nexec docker exec -i %q psql "$@"\n' "$container_name" > "$test_dir/psql"
 chmod +x "$test_dir/psql"
