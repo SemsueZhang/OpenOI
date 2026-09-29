@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowDown, ArrowRight, ArrowUpRight, Braces, Plus } from 'lucide-react';
+import { ArrowDown, ArrowRight, ArrowUpRight, Plus } from 'lucide-react';
 import type { Paged, Problem, ProblemFilters } from '@/lib/types';
 import { useI18n } from '@/components/i18n';
 import { ProblemCard, EmptyState, ConfigNotice } from '@/components/content';
@@ -24,16 +24,7 @@ export function HomeView({ result, filters, configured, signedIn }: { result: Pa
             {signedIn && <Link href="/new/problem" className="home-secondary-action"><Plus size={17} strokeWidth={2}/>{t('newProblem')}</Link>}
           </div>
         </div>
-        <div className="home-orbit" aria-hidden="true">
-          <div className="home-orbit-ring home-orbit-ring-outer" />
-          <div className="home-orbit-ring home-orbit-ring-inner" />
-          <div className="home-orbit-cross home-orbit-cross-h" /><div className="home-orbit-cross home-orbit-cross-v" />
-          <div className="home-orbit-core"><Braces size={46} strokeWidth={1.25} /></div>
-          <div className="home-orbit-node home-orbit-node-one"><span className="home-node-number">01</span><span>{t('heroStepProblem')}</span></div>
-          <div className="home-orbit-node home-orbit-node-two"><span className="home-node-number">02</span><span>{t('heroStepSolution')}</span></div>
-          <div className="home-orbit-node home-orbit-node-three"><span className="home-node-number">03</span><span>{t('heroStepEvidence')}</span></div>
-          <span className="home-orbit-dot home-orbit-dot-a" /><span className="home-orbit-dot home-orbit-dot-b" /><span className="home-orbit-dot home-orbit-dot-c" />
-        </div>
+        <div className="home-galaxy-anchor" aria-hidden="true" />
       </div>
       <a href="#problems" className="home-scroll-cue"><ArrowDown size={15}/>{t('heroScroll')}</a>
     </section>
