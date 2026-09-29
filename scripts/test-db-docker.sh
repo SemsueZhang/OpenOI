@@ -58,7 +58,7 @@ if docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d
   echo 'Migration accepted a solution without original_url' >&2
   exit 1
 fi
-if ! rg -q 'original_url' "$test_dir/preflight.log"; then
+if ! grep -Fq 'original_url' "$test_dir/preflight.log"; then
   cat "$test_dir/preflight.log" >&2
   exit 1
 fi
