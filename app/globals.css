@@ -1,0 +1,54 @@
+@import 'katex/dist/katex.min.css';
+@import 'highlight.js/styles/github-dark.css';
+@import './hero.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --void: #050610;
+  --void-rgb: 5 6 16;
+  --panel: #0c1023;
+  --panel-rgb: 12 16 35;
+  --panel-elevated: #111830;
+  --panel-elevated-rgb: 17 24 48;
+  --edge: #243052;
+  --edge-rgb: 36 48 82;
+  --ink: #e7eeff;
+  --ink-rgb: 231 238 255;
+  --muted: #94a4c8;
+  --muted-rgb: 148 164 200;
+  --dim: #64749b;
+  --dim-rgb: 100 116 155;
+  --electric: #53adff;
+  --electric-rgb: 83 173 255;
+  --violet: #a58aff;
+  --violet-rgb: 165 138 255;
+}
+html { scroll-behavior: smooth; }
+body { min-height: 100vh; background: radial-gradient(ellipse 75% 36% at 50% -8%, #172755 0%, transparent 70%), var(--void); color: var(--ink); }
+::selection { background: #5654a8; color: #fff; }
+:focus-visible { outline: 2px solid var(--electric); outline-offset: 3px; }
+@layer components {
+  .surface-panel { @apply rounded-xl border border-edge bg-panel; box-shadow: 0 12px 44px rgba(0, 0, 0, .14), inset 0 1px 0 rgba(151, 178, 255, .035); }
+  .btn-electric { background: linear-gradient(110deg, #2468d1, #6240ad); color: #fff; border: 1px solid rgba(150, 184, 255, .35); box-shadow: 0 4px 22px rgba(66, 111, 240, .2), inset 0 1px 0 rgba(255, 255, 255, .12); transition: box-shadow .2s ease, transform .2s ease; }
+  .btn-electric:hover { box-shadow: 0 6px 26px rgba(83, 127, 255, .4), inset 0 1px 0 rgba(255, 255, 255, .2); transform: translateY(-1px); }
+  .btn-electric:active { transform: translateY(0); }
+  .link-electric { @apply text-electric hover:text-violet transition-colors; }
+}
+select { color-scheme: dark; }
+option { background: var(--panel-elevated); color: var(--ink); }
+.prose pre code { background: transparent; }
+.prose .katex-display { overflow-x: auto; overflow-y: hidden; }
+.prose .katex { color: var(--ink); }
+.prose :not(pre) > code { color: #b9a6ff; }
+.prose table { display: block; overflow-x: auto; }
+.prose thead { border-color: var(--edge); }
+.prose tbody tr { border-color: var(--edge); }
+.prose img { border-radius: .75rem; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .btn-electric { transition: none; }
+  .btn-electric:hover { transform: none; }
+}
