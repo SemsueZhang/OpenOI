@@ -15,7 +15,6 @@ export function HomeView({ result, filters, configured, signedIn }: { result: Pa
       <div className="home-hero-grid" aria-hidden="true" />
       <ParticleField />
       <div className="home-hero-glow" aria-hidden="true" />
-      <div className="home-corner home-corner-tl" aria-hidden="true" /><div className="home-corner home-corner-br" aria-hidden="true" />
       <div className="home-hero-content">
         <div className="home-hero-copy">
           <h1 id="home-title" className="home-title">{t('heroTitleFirst')}<br/><span>{t('heroTitleSecond')}</span></h1>
