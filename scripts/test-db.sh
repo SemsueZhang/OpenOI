@@ -26,6 +26,8 @@ SQL
 trap cleanup EXIT
 
 run_sql < tests/database/acceptance.sql >/dev/null
+run_sql < tests/database/content_limits.sql >/dev/null
+echo 'Database content-limit tests passed'
 
 run_sql <<'SQL' >/dev/null
 insert into auth.users(id, instance_id, aud, role, email, encrypted_password, raw_user_meta_data)

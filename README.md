@@ -34,6 +34,7 @@ lib/
   data.ts security.ts types.ts
 supabase/
   migrations/20260929000000_initial.sql
+  migrations/20260929010000_content_limits.sql
   templates/confirmation.html
   config.toml
 tests/                         安全渲染、重定向与数据库验收
@@ -65,7 +66,7 @@ npm run dev
 
 ### 托管项目
 
-创建空 Supabase 项目，在 SQL Editor 执行 `supabase/migrations/20260929000000_initial.sql`。迁移会建立六张表、外键、索引、RLS、注册资料触发器、状态触发器、投票/Hack RPC 和查询视图。该迁移是初始建库脚本，不要在已初始化数据库中重复执行。
+创建空 Supabase 项目，在 SQL Editor 按文件名顺序执行 `supabase/migrations/` 下的迁移。初始迁移建立六张表、外键、索引、RLS、注册资料触发器、状态触发器、投票/Hack RPC 和查询视图，后续迁移补充数据库字段限制。已有数据库只执行尚未应用的迁移，不要重复执行初始建库脚本。收紧约束前先检查已有内容是否超限；迁移不会自动截断或删除内容。
 
 也可以使用 CLI 管理迁移，选择这一方式时无需再手动执行 SQL：
 
@@ -82,15 +83,17 @@ http://localhost:3000/auth/confirm**
 https://YOUR_DOMAIN/auth/confirm**
 ```
 
-按实际需要添加 `127.0.0.1` 或精确的预览域名，不必开放所有 Vercel 域名。生产邮件发送可在 Supabase 中配置自己的 SMTP。
+按实际需要添加 `127.0.0.1` 或精确的预览域名，不必开放所有 Vercel 域名。面向公众注册时，在 Supabase 中配置自己的 SMTP。免费内置邮件服务适合受限开发验证，不能替代正式邮件发送配置；当前托管控制台在未配置 SMTP 的免费项目上不开放模板编辑。
 
-将 `supabase/templates/confirmation.html` 的内容复制到 Authentication → Email Templates → Confirm signup。应用注册时传入的 `emailRedirectTo` 已包含 `/auth/confirm?next=...`，模板在其后追加 token：
+默认模板可直接使用：应用兼容 Supabase 默认确认链接返回的 PKCE `code`，通过 `exchangeCodeForSession` 建立 SSR 会话。请在发起注册的同一浏览器中打开确认链接，以便读取 PKCE verifier cookie。
+
+配置自定义 SMTP 后，也可将 `supabase/templates/confirmation.html` 的内容复制到 Authentication → Emails → Confirm signup。应用注册时传入的 `emailRedirectTo` 已包含 `/auth/confirm?next=...`，该模板在其后追加 token：
 
 ```html
 <a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=email">确认邮箱</a>
 ```
 
-必须保留这组模板与回调的配套关系，不能直接使用默认的 `ConfirmationURL` 模板替代。回调通过 `verifyOtp` 建立会话，成功后跳转到校验过的站内 `next`；无效或过期链接回到登录页提示。注册成功或确认链接失效时，可在注册/登录表单中填写邮箱并重发确认邮件，无需重新创建账号；重发使用相同的回调地址并返回中性提示。用户名为 3–32 位小写字母、数字或下划线，注册时由 Auth 触发器创建唯一 profiles 记录。
+自定义 token 模板由回调的 `verifyOtp` 分支处理；两种方式成功后均跳转到校验过的站内 `next`，无效或过期链接回到登录页提示。注册成功、未确认邮箱登录或确认链接失效时，可在注册/登录表单中填写邮箱并重发确认邮件，无需重新创建账号；重发使用相同的回调地址并返回中性提示。用户名为 3–32 位小写字母、数字或下划线，注册时由 Auth 触发器创建唯一 profiles 记录。
 
 ### 完全本地的 Supabase（可选）
 
@@ -113,6 +116,8 @@ npx supabase status
 - 删除题目会级联删除其下解法、Hack、评论和投票；删除解法或 Hack 同样级联删除其子内容，界面会明确确认。
 - votes 写入与 Hack 创建/删除仅通过 RPC，统一先锁所属 solution。多态 comments/votes 用内部生成列和真实外键保证目标存在；这些内部列不改变表单接口。
 - Markdown 禁用原始 HTML，过滤链接协议，KaTeX 禁用可信命令。代码和证据按文本展示，外部图片不会经过 Next.js 图片代理。
+- 数据库直接写入也受长度约束：题面/解法/Hack 正文和代码最多 100000 字符，单个证据字段最多 30000 字符，评论最多 20000 字符，标签最多 12 个且每个最多 32 字符。
+- 题目、解法、Hack、评论和个人主页内容每页 20 条，分页状态保存在 URL。Hack 评论按需展开并单独分页，避免为每个 Hack 预加载评论；带 `?hack=ID#hack-ID` 的链接会定位目标 Hack 所在页。
 
 ## 部署到 Vercel
 
@@ -137,6 +142,14 @@ npm run build
 ```bash
 npm run test:db:docker
 ```
+
+对已启动的本地 Supabase，还可验证真实 Auth、邮件捕获、PostgREST 和分页：
+
+```bash
+node scripts/test-local-supabase.mjs
+```
+
+此脚本只接受本机 `127.0.0.1` / `localhost` 的 54321 API 与 54324 邮件服务，使用随机临时账号，完成后清理账号及级联内容。它会验证未确认邮箱、邮件确认、PKCE、登录、RLS、投票状态和超过 1000 条评论的分页。不要把其本地管理员密钥用于应用；脚本不接受托管项目地址。
 
 脚本创建无持久卷、无宿主机开放端口的临时 PostgreSQL 15 容器，模拟最小 Auth 结构，依次执行迁移和验收并清理容器；不需要宿主机安装 `psql`，也不连接你的 Supabase 项目。首次运行会拉取 PostgreSQL 镜像。这只验证数据库行为，不启动或验证真正的 Supabase Auth 服务。
 

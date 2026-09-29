@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { getLocale, LOCALE_COOKIE } from '@/lib/locale';
+import { classifySignInFailure, EMAIL_NOT_CONFIRMED } from '@/lib/auth-flow';
 import { cleanTags, httpUrlSchema, safeSitePath, usernameSchema, uuidSchema } from '@/lib/security';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -113,7 +114,7 @@ export async function signIn(form: FormData): Promise<ActionResult> {
   const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse({ email: field(form, 'email'), password: fieldRaw(form, 'password') });
   if (!parsed.success) return validationError(parsed.error);
   const { error } = await db.auth.signInWithPassword(parsed.data);
-  if (error) return fail('auth');
+  if (error) return classifySignInFailure(error) === EMAIL_NOT_CONFIRMED ? { ok: false, error: EMAIL_NOT_CONFIRMED } : fail('auth');
   revalidatePath('/', 'layout');
   return { ok: true, redirectTo: safeSitePath(field(form, 'redirectTo')) };
 }
@@ -246,14 +247,14 @@ export async function saveHack(form: FormData): Promise<ActionResult> {
     const { error } = await ctx.db.from('hacks').update(values).eq('id', id);
     if (error) return dbError(error);
     revalidatePath(`/solutions/${existing.solution_id}`);
-    return { ok: true, id, redirectTo: `/solutions/${existing.solution_id}#hack-${id}` };
+    return { ok: true, id, redirectTo: `/solutions/${existing.solution_id}?hack=${id}#hack-${id}` };
   }
   const solution_id = field(form, 'solution_id');
   if (!uuidSchema.safeParse(solution_id).success) return fail('invalid');
   const { data, error } = await ctx.db.rpc('create_hack', { p_solution_id: solution_id, p_type: values.type, p_content_md: values.content_md, p_input_data: values.input_data, p_expected_output: values.expected_output, p_actual_output: values.actual_output });
   if (error) return dbError(error);
   revalidatePath(`/solutions/${solution_id}`);
-  return { ok: true, id: String(data), redirectTo: `/solutions/${solution_id}#hack-${data}` };
+  return { ok: true, id: String(data), redirectTo: `/solutions/${solution_id}?hack=${data}#hack-${data}` };
 }
 
 export async function deleteHack(form: FormData): Promise<ActionResult> {

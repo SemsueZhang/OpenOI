@@ -18,7 +18,7 @@ port = 54323
 [auth]
 enabled = true
 site_url = "http://localhost:3000"
-additional_redirect_urls = ["http://127.0.0.1:3000/**", "http://localhost:3000/**"]
+additional_redirect_urls = ["http://127.0.0.1:3000/**", "http://localhost:3000/**", "http://localhost:3001/auth/confirm**"]
 enable_signup = true
 
 [auth.email]

@@ -38,8 +38,15 @@ fi
 
 docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
   < tests/database/plain_postgres_bootstrap.sql
-docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
-  < supabase/migrations/20260929000000_initial.sql
+shopt -s nullglob
+migrations=(supabase/migrations/*.sql)
+if ((${#migrations[@]} == 0)); then
+  echo 'No database migrations found' >&2
+  exit 1
+fi
+for migration in "${migrations[@]}"; do
+  docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < "$migration"
+done
 
 printf '#!/usr/bin/env bash\nexec docker exec -i %q psql "$@"\n' "$container_name" > "$test_dir/psql"
 chmod +x "$test_dir/psql"
