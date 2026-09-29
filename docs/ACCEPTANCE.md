@@ -15,7 +15,10 @@
 - 在不含 Supabase 环境变量的临时项目副本中，以本地 fixture 实测题目、做法、发布/编辑表单。桌面 1280px 检查双栏与中英文侧栏；390px 手机题目页的长链接溢出已修复，最终 document.scrollWidth 与视口均为 390。做法页同样为 390。
 - 浏览器验证题目表单输入 1001 个 emoji 显示 1001/1000 并阻止提交；讨论输入 100 个 emoji 时允许提交、101 个时禁用，讨论编辑 101 字符同样禁用。该检查没有提交业务数据，不等同于托管写入端到端验证。
 - 最终 UI 修复后再次通过类型检查、Lint 与生产构建。预览 fixture 只存在于 `/private/tmp/openoi-redesign-preview`，不随仓库发布。
-- 本轮未启动 Docker、未发送测试邮件、未创建托管测试账号。用户确认后，20260929020000_simplify_content.sql 已通过 SQL Editor 在托管项目事务执行成功；本轮代码将通过 main 推送触发 Vercel 自动部署。
+- 本轮未启动 Docker、未发送测试邮件、未创建托管测试账号。用户确认后，20260929020000_simplify_content.sql 已通过 SQL Editor 在托管项目事务执行成功；代码已推送 main，功能提交为 `873048a7c746604b61bf9067ad54819b03d67995`。Vercel 部署 `FxfaBfrBXTK6JFT5BF1rAweqZ6ho` 显示 Ready，并已关联正式域名 `open-oi.vercel.app`。
+
+- 迁移后匿名读取新 problems/solutions/comments 及两个汇总视图均 HTTP 200；hacks/votes 返回 PGRST205（不存在），旧 difficulty/code/status 列返回 PostgreSQL 42703（不存在）。
+- Safari 实际访问正式域名，已显示新版“汇集做法链接”文案；首页只保留标题和固定标签筛选，八个选项完整，中英文切换正常，无数据库错误或配置缺失提示。没有向正式站点添加验收数据，邮箱与真实登录后写入流程继续按用户要求暂缓。
 
 ## 首次 Vercel 上线
 
