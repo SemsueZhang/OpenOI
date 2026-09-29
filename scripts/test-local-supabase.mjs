@@ -133,47 +133,34 @@ async function verifyPkceCodeFlow(email) {
 }
 
 try {
-  const anonymousWrite = await anonymous.from('problems').insert({ title: 'anon', difficulty: 'easy', statement_md: 'x' });
+  const anonymousWrite = await anonymous.from('problems').insert({ title: 'anon', statement_md: 'x' });
   assert(anonymousWrite.error, 'anonymous content write accepted');
   const alice = await signUpAndConfirm('a');
   const bob = await signUpAndConfirm('b');
   await verifyPkceCodeFlow(alice.email);
 
   const problem = ok(await alice.client.from('problems')
-    .insert({ title: `Local test ${marker}`, source: 'fixture', difficulty: 'easy', tags: ['auth'], statement_md: '# Statement' })
+    .insert({ title: `Local test ${marker}`, source_urls: ['https://example.org/problem'], tags: ['数学'], statement_md: '# Statement' })
     .select('id,created_by').single(), 'problem insert');
   assert.equal(problem.created_by, alice.userId);
   const oversized = await alice.client.from('problems').update({ title: 'x'.repeat(201) }).eq('id', problem.id);
   assert(oversized.error, 'oversized title accepted');
-  const excessiveTags = await alice.client.from('problems').update({ tags: Array.from({ length: 13 }, (_, i) => `t${i}`) }).eq('id', problem.id);
-  assert(excessiveTags.error, 'too many tags accepted');
+  const excessiveTags = await alice.client.from('problems').update({ tags: ['数学', 'unknown'] }).eq('id', problem.id);
+  assert(excessiveTags.error, 'unknown tag accepted');
 
   const solution = ok(await alice.client.from('solutions')
-    .insert({ problem_id: problem.id, title: 'Explanation', algorithm: 'DP', content_md: 'Proof' })
+    .insert({ problem_id: problem.id, title: 'Explanation', content_md: 'Proof', original_url: 'https://example.org/solution' })
     .select('id,author_id').single(), 'solution insert');
   assert.equal(solution.author_id, alice.userId);
-  const hackId = ok(await bob.client.rpc('create_hack', {
-    p_solution_id: solution.id, p_type: 'logic', p_content_md: 'Counterexample',
-    p_input_data: '1', p_expected_output: '1', p_actual_output: '0',
-  }), 'hack insert');
-  assert((await bob.client.rpc('set_vote', { p_target_type: 'hack', p_target_id: hackId, p_value: 1 })).error, 'hack author self-vote accepted');
-  ok(await alice.client.rpc('set_vote', { p_target_type: 'hack', p_target_id: hackId, p_value: 1 }), 'hack vote');
-  ok(await bob.client.rpc('set_vote', { p_target_type: 'solution', p_target_id: solution.id, p_value: 1 }), 'solution vote');
+  const summary = ok(await anonymous.from('solution_summaries').select('original_url').eq('id', solution.id).single(), 'solution summary');
+  assert.equal(summary.original_url, 'https://example.org/solution');
+  assert((await bob.client.from('comments').insert({ target_type: 'hack', target_id: solution.id, content_md: 'No' })).error, 'hack comment accepted');
 
-  const hacked = ok(await anonymous.from('solution_summaries').select('status,vote_count').eq('id', solution.id).single(), 'solution summary');
-  assert.equal(hacked.status, 'hacked');
-  assert.equal(hacked.vote_count, 1);
-  ok(await alice.client.rpc('set_vote', { p_target_type: 'hack', p_target_id: hackId, p_value: -1 }), 'hack reverse vote');
-  assert.equal(ok(await anonymous.from('solutions').select('status').eq('id', solution.id).single(), 'reversed status').status, 'normal');
-  ok(await alice.client.rpc('set_vote', { p_target_type: 'hack', p_target_id: hackId, p_value: null }), 'hack vote removal');
-  assert.equal(ok(await anonymous.from('solutions').select('status').eq('id', solution.id).single(), 'removed vote status').status, 'disputed');
-  ok(await bob.client.rpc('delete_hack', { p_hack_id: hackId }), 'hack delete');
-  assert.equal(ok(await anonymous.from('solutions').select('status').eq('id', solution.id).single(), 'deleted hack status').status, 'normal');
   const unauthorized = ok(await bob.client.from('problems').update({ title: 'Hijacked' }).eq('id', problem.id).select('id'), 'other author update');
   assert.equal(unauthorized.length, 0);
-  assert((await bob.client.from('comments').insert({ target_type: 'hack', target_id: randomUUID(), content_md: 'orphan' })).error, 'orphan comment accepted');
+  assert((await bob.client.from('comments').insert({ target_type: 'solution', target_id: randomUUID(), content_md: 'orphan' })).error, 'orphan comment accepted');
 
-  const pageRows = Array.from({ length: 21 }, (_, i) => ({ title: `Page ${marker} ${i}`, difficulty: 'easy', statement_md: 'fixture' }));
+  const pageRows = Array.from({ length: 21 }, (_, i) => ({ title: `Page ${marker} ${i}`, statement_md: 'fixture' }));
   ok(await alice.client.from('problems').insert(pageRows), 'pagination fixtures');
   const filter = `Page ${marker}%`;
   const page1 = ok(await anonymous.from('problem_summaries').select('id').like('title', filter).order('created_at').order('id').range(0, 19), 'page 1');
@@ -193,7 +180,7 @@ try {
   ok(countResult, 'exact comment count');
   assert.equal(countResult.count, 1001);
 
-  console.log('Local Supabase Auth, mail, RLS, content, votes and pagination tests passed');
+  console.log('Local Supabase Auth, mail, RLS, content and pagination tests passed');
 } finally {
   let cleanupFailed = false;
   for (const userId of users.reverse()) {

@@ -1,46 +1,41 @@
 # OpenOI
 
-算法题解社区 MVP：发布题目与解法，以反例、逻辑漏洞、复杂度问题和边界情况发起 Hack，再由社区投票验证。公开浏览，登录后发布、评论和投票。默认中文，可切换英文界面；语言保存在 cookie，不改变路由、不翻译用户内容。
+算法竞赛中的开放问题社区。公开浏览，登录后发布题目、分享做法链接和参与讨论。默认中文，可切换英文；用户内容保持原文。界面采用黑蓝紫配色，首页保留粒子动效并支持系统减少动态效果偏好。
 
-技术栈：Next.js 16.3.6 App Router、React 19、TypeScript、Tailwind CSS 3、源码内置（vendored）的 shadcn/ui 兼容组件、Supabase PostgreSQL/Auth、react-markdown、GFM、KaTeX 和 highlight.js。UI 组件位于 `components/ui`，附带 `components.json` 配置。推荐 Node.js 22（见 `.nvmrc`），依赖以 `package-lock.json` 为准。
+线上地址：[open-oi.vercel.app](https://open-oi.vercel.app)。现有 Vercel Hobby 项目为 `acmm14/open-oi`，连接 `SemsueZhang/OpenOI` 的 `main` 分支。首次生产部署为 `8a40754`；本轮改版是否已上线以 [验收记录](docs/ACCEPTANCE.md) 为准。用户已选择暂缓邮箱测试，自定义 SMTP 尚未配置。
 
-不提供代码执行、评测、排名、测试数据管理、通知或版本历史。Hack 输入与输出仅是用户填写的文本证据。头像和 Markdown 图片只引用 HTTP(S) URL，没有文件上传入口，无需创建 Supabase Storage bucket；可引用已有公开 Storage URL。
+## 功能与规则
 
-## 界面与动效
+- 题目正文最多 1000 字符；右侧展示标签、来源链接、相似题目链接和做法链接，不设题目讨论区。
+- 固定标签：图论、数据结构、组合优化、数学、搜索、计算几何、字符串、特殊题型。首页支持标题搜索、标签筛选、每页 20 条分页。
+- 做法单独成页，包含标题、最多 1000 字符的摘要、必填原文链接、作者和发布时间；按发布时间倒序排列。
+- 做法讨论每条最多 100 字符，支持作者修改、删除。字数按 Unicode 码点计算，包含空格和换行；普通 emoji 算一个码点，组合 emoji 可能包含多个。
+- 不提供 Hack、投票、代码提交、代码运行、评测或排名。Markdown 保留安全的基础格式和数学公式；不会运行其中的文本。
+- 头像和 Markdown 图片只填写 URL，不提供上传入口，无需 Storage bucket。
+- 来源和相似题目链接各最多 20 个，原文与链接字段仅接受 HTTP(S)。发布表单的链接每行一个。
 
-界面采用黑色背景、蓝紫色强调色与深色内容面板。首页包含双语介绍、题目入口和 Canvas 星系粒子动画；表单、状态标签、代码高亮、Markdown、登录页及移动菜单使用一致的深色样式。视觉升级保留现有题目筛选、分页、发布、评论与投票流程。
+## 目录与技术栈
 
-粒子仅用于装饰，不接收点击，也不进入无障碍阅读顺序。桌面最多 742 个星点，窄屏最多 242 个，Canvas 像素比上限为 2；首页区域离开视口或页面进入后台时停止动画，卸载时清理帧请求、监听器和观察器。启用系统“减少动态效果”后显示静态星系，并关闭平滑滚动和主要按钮的位移动效。该效果无需额外动画依赖。
-
-## 目录与路由
+Next.js 16.3.6 App Router、React 19、TypeScript、Tailwind CSS 3、源码内置的 shadcn/ui 兼容组件、Supabase PostgreSQL/Auth、react-markdown、GFM 和 KaTeX。使用 Node.js 22，精确依赖见 `package-lock.json`。
 
 ```text
 app/
-  page.tsx                     首页搜索、筛选与分页
-  problems/[id]/               题面与按有用票排序的解法
-  solutions/[id]/              解法、Hack、评论与作者回应
+  page.tsx                     搜索、标签筛选、分页
+  problems/[id]/               题目正文与链接侧栏
+  solutions/[id]/              做法摘要、原文链接与讨论
   new/problem/                 发布/编辑题目（?edit=）
-  new/solution/                发布/编辑解法（?problem_id=，可加 &edit=）
-  hack/new/                    发起/编辑 Hack（?solution_id=，可加 &edit=）
-  profile/[username]/          用户发布内容
-  settings/profile/            用户名与头像 URL
+  new/solution/                发布/编辑做法（?problem_id=，可加 &edit=）
+  profile/[username]/          用户的题目与做法
+  settings/profile/            用户名和头像 URL
   login/ register/ auth/confirm/
-  actions.ts                   服务端验证与写入
-components/                    表单、Markdown、代码、投票、评论、双语界面
-  ui/                          可复用 UI 基础组件
-lib/
-  supabase.ts                  浏览器 Supabase 客户端
-  supabase/server.ts           带 cookie 的服务端客户端
-  data.ts security.ts types.ts
-supabase/
-  migrations/20260929000000_initial.sql
-  migrations/20260929010000_content_limits.sql
-  templates/confirmation.html
-  config.toml
-tests/                         安全渲染、重定向与数据库验收
-scripts/test-db.sh              双连接数据库并发验收
-scripts/test-db-docker.sh       独立 PostgreSQL 15 一键验收
-docs/ACCEPTANCE.md              验证记录与上线前检查
+  actions.ts                   身份检查、校验、写入
+components/                    表单、Markdown、讨论、双语界面
+lib/                           类型、查询、安全校验、Supabase 客户端
+supabase/migrations/            按文件名顺序执行的数据库迁移
+supabase/templates/             可选确认邮件模板
+tests/                         自动测试与数据库验收
+scripts/                       隔离数据库和本地服务检查
+docs/ACCEPTANCE.md              本轮及历史验证记录
 ```
 
 ## 本地启动
@@ -52,81 +47,54 @@ cp .env.local.example .env.local
 npm run dev
 ```
 
-填写 `.env.local` 后打开 http://localhost:3000：
+填写以下环境变量，打开 http://localhost:3000：
 
-| 环境变量 | 值 |
+| 变量 | 内容 |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase 项目的 API URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 项目的 publishable key 或 legacy anon key；变量名保持不变 |
-| `NEXT_PUBLIC_SITE_URL` | 本地为 `http://localhost:3000`，线上为实际 HTTPS 域名 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | publishable key 或 legacy anon key |
+| `NEXT_PUBLIC_SITE_URL` | 本地为 `http://localhost:3000`；线上为实际 HTTPS 域名 |
 
-应用不需要 service-role key，也不应把 service-role、secret key 或数据库密码放进 `NEXT_PUBLIC_*`。未配置 Supabase 时可查看空状态与配置提示，真实数据与认证需要下述数据库和 Auth 配置。
+不要在公开环境变量中放 service-role key、secret key 或数据库密码。应用写入使用当前用户会话，服务端客户端按请求创建。未配置 Supabase 时可以浏览空状态，真实内容及认证需要数据库配置。
 
-## 初始化 Supabase
+## Supabase 初始化与升级
 
-### 托管项目
+新项目在 SQL Editor 中按文件名顺序执行 `supabase/migrations/` 的全部文件。历史迁移保留旧模型以支持顺序升级，最后一份迁移将其转换为当前四张业务表：`profiles`、`problems`、`solutions`、`comments`。
 
-创建空 Supabase 项目，在 SQL Editor 按文件名顺序执行 `supabase/migrations/` 下的迁移。初始迁移建立六张表、外键、索引、RLS、注册资料触发器、状态触发器、投票/Hack RPC 和查询视图，后续迁移补充数据库字段限制。已有数据库只执行尚未应用的迁移，不要重复执行初始建库脚本。收紧约束前先检查已有内容是否超限；迁移不会自动截断或删除内容。
+已有项目只执行尚未应用的迁移。当前托管项目已通过 SQL Editor 手动执行了三份迁移（含本轮 simplify_content），不能直接重跑 initial，也不要在未对齐迁移历史时直接运行 `supabase db push`。
 
-也可以使用 CLI 管理迁移，选择这一方式时无需再手动执行 SQL：
+**本轮迁移会删除旧 Hack、投票、Hack 下的评论及做法的代码等已移除字段。执行前备份现有数据库并检查迁移文件。** 对保留的题目、做法及讨论，迁移不会静默截断内容，也不会伪造原文链接。存在超长正文/摘要/讨论、旧自定义标签或缺少原文链接的做法时，预检查会阻止升级；先整理数据并补齐链接，再重试。事务中执行，避免部分升级。详细预检查规则见最新 SQL 文件注释。
 
-```bash
-npx supabase login
-npx supabase link --project-ref YOUR_PROJECT_REF
-npx supabase db push
-```
+四张业务表启用 RLS：匿名可读，登录用户可发布，只有作者可修改/删除自己的内容。列级权限保护作者、所属目标和创建时间。讨论仅关联做法，真实外键确保目标存在；删除题目级联删除做法和讨论，界面明确确认。
 
-在 Authentication 中开启 Email provider、允许注册并启用邮箱确认。URL Configuration 的 Site URL 设为实际站点地址，Redirect URLs 加入：
+字段长度、固定标签、URL 和目标限制同时由数据库执行，不能通过绕过网页表单跳过。Markdown 禁用原始 HTML、过滤 URL 协议，KaTeX 禁用可信命令。
+
+## 邮箱认证
+
+Authentication 中开启 Email provider、注册和邮箱确认。URL Configuration 的 Site URL 设置为实际站点域名，Redirect URLs 加入：
 
 ```text
 http://localhost:3000/auth/confirm**
 https://YOUR_DOMAIN/auth/confirm**
 ```
 
-按实际需要添加 `127.0.0.1` 或精确的预览域名，不必开放所有 Vercel 域名。面向公众注册时，在 Supabase 中配置自己的 SMTP。免费内置邮件服务适合受限开发验证，不能替代正式邮件发送配置；当前托管控制台在未配置 SMTP 的免费项目上不开放模板编辑。
+Vercel 提供的免费域名可以直接使用，无需购买自有域名。公众注册邮件需要合适的自定义 SMTP；目前此项及真实邮箱测试暂缓，不能把网站可访问等同于公众注册发信已验收。
 
-默认模板可直接使用：应用兼容 Supabase 默认确认链接返回的 PKCE `code`，通过 `exchangeCodeForSession` 建立 SSR 会话。请在发起注册的同一浏览器中打开确认链接，以便读取 PKCE verifier cookie。
-
-配置自定义 SMTP 后，也可将 `supabase/templates/confirmation.html` 的内容复制到 Authentication → Emails → Confirm signup。应用注册时传入的 `emailRedirectTo` 已包含 `/auth/confirm?next=...`，该模板在其后追加 token：
+应用兼容 Supabase 默认邮件模板的 PKCE `code` 回调。在发起注册的同一浏览器打开邮件链接，以读取 verifier cookie。配置自定义 SMTP 后，也可使用 `supabase/templates/confirmation.html`，将以下链接放入确认邮件模板：
 
 ```html
 <a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=email">确认邮箱</a>
 ```
 
-自定义 token 模板由回调的 `verifyOtp` 分支处理；两种方式成功后均跳转到校验过的站内 `next`，无效或过期链接回到登录页提示。注册成功、未确认邮箱登录或确认链接失效时，可在注册/登录表单中填写邮箱并重发确认邮件，无需重新创建账号；重发使用相同的回调地址并返回中性提示。用户名为 3–32 位小写字母、数字或下划线，注册时由 Auth 触发器创建唯一 profiles 记录。
+应用同时支持 `verifyOtp` 的 token 回调，成功后只允许跳转到站内路径。未确认邮箱登录、确认失败和注册完成页提供重发入口。用户名使用 3–32 位小写字母、数字或下划线。
 
-### 完全本地的 Supabase（可选）
+## 部署 Vercel
 
-需要运行中的 Docker 和 Supabase CLI。项目已提供 `supabase/config.toml`：
-
-```bash
-npx supabase start
-npx supabase db reset --local --no-seed
-npx supabase status
-```
-
-`db reset` 会清空本地数据库，仅用于开发环境。把 status 中的 API URL 与 anon key 填入 `.env.local`，在 status 显示的本地邮件查看器中打开确认邮件。无需导入示例题目或种子数据。`tests/database/plain_postgres_bootstrap.sql` 仅用于隔离 PostgreSQL 测试，不能在真实 Supabase 项目执行。
-
-## 规则与权限
-
-- 六张表允许匿名读取；仅登录用户可写。资料只能本人修改，题目、解法、Hack 和评论只能作者编辑/删除。作者和所属目标不可转移，状态不可由客户端指定。
-- 解法只接受“有用”票；Hack 接受“有效/无效”。同一用户、同一目标最多一票，可转票、再次点击撤票；不能给自己的内容投票。
-- Hack 有效票多于无效票为 `valid`，少于为 `invalid`，相等为 `pending`。解法存在任意 valid Hack 时为 `hacked`，否则存在 pending 时为 `disputed`，其余为 `normal`。创建、转票、撤票、删除都会重新汇总；修改正文不会清除状态。
-- Hack 评论中解法作者的留言标记为作者回应。无需额外回复表。
-- 删除题目会级联删除其下解法、Hack、评论和投票；删除解法或 Hack 同样级联删除其子内容，界面会明确确认。
-- votes 写入与 Hack 创建/删除仅通过 RPC，统一先锁所属 solution。多态 comments/votes 用内部生成列和真实外键保证目标存在；这些内部列不改变表单接口。
-- Markdown 禁用原始 HTML，过滤链接协议，KaTeX 禁用可信命令。代码和证据按文本展示，外部图片不会经过 Next.js 图片代理。
-- 数据库直接写入也受长度约束：题面/解法/Hack 正文和代码最多 100000 字符，单个证据字段最多 30000 字符，评论最多 20000 字符，标签最多 12 个且每个最多 32 字符。
-- 题目、解法、Hack、评论和个人主页内容每页 20 条，分页状态保存在 URL。Hack 评论按需展开并单独分页，避免为每个 Hack 预加载评论；带 `?hack=ID#hack-ID` 的链接会定位目标 Hack 所在页。
-
-## 部署到 Vercel
-
-1. 将项目推送至 Git 仓库并在 Vercel 导入，选择 Next.js、Node.js 22，使用默认 `npm run build` 和 `.next` 输出。
-2. 在 Vercel 对需要的环境设置上述三个变量；`NEXT_PUBLIC_SITE_URL` 设置为该环境实际可访问域名，然后部署。
-3. 按前文完成 Supabase 迁移、邮箱模板及 Site URL/Redirect URLs 配置。更换域名或公开环境变量后重新部署。
-4. 用真实邮箱完成注册确认、登录、发布、投票和退出检查。未完成这一步，不应把单元测试或 PostgreSQL 验收视为 Auth 端到端验收。
-
-项目已从 Next.js 14/React 18 升级到 Next.js 16.3.6/React 19.3.0；升级后 `npm audit` 未报告已知依赖漏洞。仍应在部署前复查审计结果并完成真实服务回归，详见验收记录。
+1. 先在隔离数据库验证新迁移，对已有生产数据备份并完成迁移预检查。
+2. 在维护窗口协调数据库升级与新代码发布；此次是破坏旧字段兼容性的升级，旧版应用不能继续对新 schema 写入。
+3. Vercel 导入仓库，选 Next.js、Node.js 22，默认 `npm run build`。设置上述三个环境变量，站点 URL 使用正式 HTTPS 地址。
+4. 推送到已关联的 `main` 会自动部署；新环境变量需要重新部署。Supabase 同步设置正式 Auth 回调允许列表。
+5. 检查正式域名页面和功能；邮件测试按实际启用范围单独完成。
 
 ## 验证
 
@@ -137,23 +105,21 @@ npm run typecheck
 npm run build
 ```
 
-有运行中的 Docker 时，推荐一键验证最终迁移、权限、状态和双连接并发：
+数据库脚本仅用于可丢弃测试环境，不能指向正式项目。无需 Docker 的 SQL 验证会在临时目录安装固定版本的 PGlite 并自动清理：
+
+```bash
+bash scripts/test-db-pglite.sh
+```
+
+此检查模拟 Auth，并以 PostgreSQL 核心 UUID 函数替代历史迁移的 pgcrypto 扩展，不替代真实 Supabase 认证、邮件和 PostgREST 验收。
+
+Docker 服务由用户自行启用，检查脚本不会替用户启动 Docker Desktop：
 
 ```bash
 npm run test:db:docker
 ```
 
-对已启动的本地 Supabase，还可验证真实 Auth、邮件捕获、PostgREST 和分页：
-
-```bash
-node scripts/test-local-supabase.mjs
-```
-
-此脚本只接受本机 `127.0.0.1` / `localhost` 的 54321 API 与 54324 邮件服务，使用随机临时账号，完成后清理账号及级联内容。它会验证未确认邮箱、邮件确认、PKCE、登录、RLS、投票状态和超过 1000 条评论的分页。不要把其本地管理员密钥用于应用；脚本不接受托管项目地址。
-
-脚本创建无持久卷、无宿主机开放端口的临时 PostgreSQL 15 容器，模拟最小 Auth 结构，依次执行迁移和验收并清理容器；不需要宿主机安装 `psql`，也不连接你的 Supabase 项目。首次运行会拉取 PostgreSQL 镜像。这只验证数据库行为，不启动或验证真正的 Supabase Auth 服务。
-
-也可以对已执行迁移的专用测试数据库验收。此方式需要 `psql`，连接账号必须可创建测试 Auth 用户并切换角色。仅在可丢弃的数据库中运行；脚本会插入、删除固定测试用户并运行两个独立连接：
+也可对已执行全部迁移的专用测试数据库执行：
 
 ```bash
 export OPENOI_TEST_DB_URL='postgresql://...'
@@ -161,4 +127,4 @@ export OPENOI_TEST_DB_CONFIRM=disposable
 npm run test:db
 ```
 
-验收覆盖、已验证结果与尚未验证的托管 Auth/浏览器流程见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)。
+`tests/database/plain_postgres_bootstrap.sql` 模拟最小 Auth，仅用于隔离 PostgreSQL，不能用于真实 Supabase。完整本地 Supabase 可通过 `supabase/config.toml` 启动，`db reset --local --no-seed` 会清空本地数据库。真实服务验收脚本只接受本机地址；本轮具体执行与未执行项目见验收记录。

@@ -5,10 +5,10 @@ import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { getLocale, LOCALE_COOKIE } from '@/lib/locale';
 import { classifySignInFailure, EMAIL_NOT_CONFIRMED } from '@/lib/auth-flow';
-import { cleanTags, httpUrlSchema, safeSitePath, usernameSchema, uuidSchema } from '@/lib/security';
+import { cleanTags, contentSchema, httpUrlSchema, parseUrlLines, safeSitePath, usernameSchema, uuidSchema } from '@/lib/security';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import type { ActionResult, TargetType } from '@/lib/types';
+import type { ActionResult } from '@/lib/types';
 
 const messages = {
   zh: {
@@ -17,7 +17,7 @@ const messages = {
     failed: '提交失败，请稍后重试。', auth: '邮箱或密码不正确。', email: '请检查邮箱并完成验证。',
     username: '用户名须为 3–32 位小写字母、数字或下划线。', url: '仅支持 HTTP 或 HTTPS URL。',
     resent: '如果该邮箱有待验证账户，我们已重新发送确认邮件。', rate: '请求过于频繁，请稍后重试。',
-    tags: '标签最多 12 个，每个不超过 32 字。', selfVote: '不能给自己的内容投票。'
+    tags: '请使用预设标签。', urls: '每组 URL 最多 20 条，且须为不重复的 HTTP 或 HTTPS URL。'
   },
   en: {
     config: 'Configure the Supabase environment variables first.', login: 'Sign in to continue.', invalid: 'Check the form fields.',
@@ -25,7 +25,7 @@ const messages = {
     failed: 'Submission failed. Please try again.', auth: 'Incorrect email or password.', email: 'Check your email to confirm your account.',
     username: 'Username must be 3–32 lowercase letters, digits, or underscores.', url: 'Only HTTP or HTTPS URLs are supported.',
     resent: 'If this email has an unconfirmed account, we have sent another confirmation link.', rate: 'Too many requests. Please try again later.',
-    tags: 'Use at most 12 tags, each no longer than 32 characters.', selfVote: 'You cannot vote on your own content.'
+    tags: 'Use the preset tags.', urls: 'Each URL list supports up to 20 unique HTTP or HTTPS URLs.'
   }
 } as const;
 type MessageKey = keyof typeof messages.zh;
@@ -33,15 +33,13 @@ async function fail(key: MessageKey): Promise<ActionResult> { return { ok: false
 function field(form: FormData, name: string): string { const value = form.get(name); return typeof value === 'string' ? value.trim() : ''; }
 function fieldRaw(form: FormData, name: string): string { const value = form.get(name); return typeof value === 'string' ? value : ''; }
 function nullable(value: string): string | null { return value || null; }
-const markdown = (max: number) => z.string().max(max).refine((value) => value.trim().length > 0);
 async function validationError(error: z.ZodError): Promise<ActionResult> {
   const first = error.issues[0];
   if (first?.message === 'invalid_username') return fail('username');
-  if (first?.path.includes('external_url') || first?.path.includes('avatar_url')) return fail('url');
+  if (first?.path.includes('original_url') || first?.path.includes('avatar_url')) return fail('url');
   return fail('invalid');
 }
 async function dbError(error: { code?: string; message?: string } | null): Promise<ActionResult> {
-  if (/own content|own target/i.test(error?.message ?? '')) return fail('selfVote');
   if (error?.code === '23505') return fail('duplicate');
   if (error?.code === 'P0002') return fail('missing');
   if (error?.code === '42501' || /permission|policy|not allowed/i.test(error?.message ?? '')) return fail('permission');
@@ -58,16 +56,10 @@ function missingContext(): Promise<ActionResult> { return isSupabaseConfigured()
 
 const optionalUrl = z.union([z.literal(''), httpUrlSchema]).transform(nullable);
 const problemSchema = z.object({
-  title: z.string().min(1).max(200), source: z.string().max(100), external_url: optionalUrl,
-  difficulty: z.enum(['easy', 'medium', 'hard']), statement_md: markdown(100000)
+  title: z.string().min(1).max(200), statement_md: contentSchema(1000)
 });
 const solutionSchema = z.object({
-  title: z.string().min(1).max(200), algorithm: z.string().max(200), content_md: markdown(100000),
-  code: z.string().max(100000), language: z.string().max(80), time_complexity: z.string().max(100), space_complexity: z.string().max(100)
-});
-const hackSchema = z.object({
-  type: z.enum(['counterexample', 'logic', 'complexity', 'boundary']), content_md: markdown(100000),
-  input_data: z.string().max(30000), expected_output: z.string().max(30000), actual_output: z.string().max(30000)
+  title: z.string().min(1).max(200), content_md: contentSchema(1000), original_url: httpUrlSchema
 });
 
 function confirmationRedirect(next: string): string | null {
@@ -151,11 +143,15 @@ export async function saveProfile(form: FormData): Promise<ActionResult> {
 export async function saveProblem(form: FormData): Promise<ActionResult> {
   const ctx = await context();
   if (!ctx) return missingContext();
-  const parsed = problemSchema.safeParse({ title: field(form, 'title'), source: field(form, 'source'), external_url: field(form, 'external_url'), difficulty: field(form, 'difficulty'), statement_md: fieldRaw(form, 'statement_md') });
+  const parsed = problemSchema.safeParse({ title: field(form, 'title'), statement_md: fieldRaw(form, 'statement_md') });
   if (!parsed.success) return validationError(parsed.error);
-  let tags: string[];
+  let tags: string[], source_urls: string[], similar_urls: string[];
   try { tags = cleanTags(field(form, 'tags')); } catch { return fail('tags'); }
-  const values = { ...parsed.data, tags };
+  try {
+    source_urls = parseUrlLines(fieldRaw(form, 'source_urls'));
+    similar_urls = parseUrlLines(fieldRaw(form, 'similar_urls'));
+  } catch { return fail('urls'); }
+  const values = { ...parsed.data, tags, source_urls, similar_urls };
   const id = field(form, 'id');
   if (id) {
     if (!uuidSchema.safeParse(id).success) return fail('invalid');
@@ -193,7 +189,7 @@ export async function deleteProblem(form: FormData): Promise<ActionResult> {
 export async function saveSolution(form: FormData): Promise<ActionResult> {
   const ctx = await context();
   if (!ctx) return missingContext();
-  const parsed = solutionSchema.safeParse({ title: field(form, 'title'), algorithm: field(form, 'algorithm'), content_md: fieldRaw(form, 'content_md'), code: fieldRaw(form, 'code'), language: field(form, 'language'), time_complexity: field(form, 'time_complexity'), space_complexity: field(form, 'space_complexity') });
+  const parsed = solutionSchema.safeParse({ title: field(form, 'title'), content_md: fieldRaw(form, 'content_md'), original_url: field(form, 'original_url') });
   if (!parsed.success) return validationError(parsed.error);
   const values = parsed.data;
   const id = field(form, 'id');
@@ -232,49 +228,10 @@ export async function deleteSolution(form: FormData): Promise<ActionResult> {
   return { ok: true, redirectTo: `/problems/${existing.problem_id}` };
 }
 
-export async function saveHack(form: FormData): Promise<ActionResult> {
-  const ctx = await context();
-  if (!ctx) return missingContext();
-  const parsed = hackSchema.safeParse({ type: field(form, 'type'), content_md: fieldRaw(form, 'content_md'), input_data: fieldRaw(form, 'input_data'), expected_output: fieldRaw(form, 'expected_output'), actual_output: fieldRaw(form, 'actual_output') });
-  if (!parsed.success) return validationError(parsed.error);
-  const values = parsed.data;
-  const id = field(form, 'id');
-  if (id) {
-    if (!uuidSchema.safeParse(id).success) return fail('invalid');
-    const { data: existing } = await ctx.db.from('hacks').select('author_id,solution_id').eq('id', id).maybeSingle();
-    if (!existing) return fail('missing');
-    if (existing.author_id !== ctx.user.id) return fail('permission');
-    const { error } = await ctx.db.from('hacks').update(values).eq('id', id);
-    if (error) return dbError(error);
-    revalidatePath(`/solutions/${existing.solution_id}`);
-    return { ok: true, id, redirectTo: `/solutions/${existing.solution_id}?hack=${id}#hack-${id}` };
-  }
-  const solution_id = field(form, 'solution_id');
-  if (!uuidSchema.safeParse(solution_id).success) return fail('invalid');
-  const { data, error } = await ctx.db.rpc('create_hack', { p_solution_id: solution_id, p_type: values.type, p_content_md: values.content_md, p_input_data: values.input_data, p_expected_output: values.expected_output, p_actual_output: values.actual_output });
-  if (error) return dbError(error);
-  revalidatePath(`/solutions/${solution_id}`);
-  return { ok: true, id: String(data), redirectTo: `/solutions/${solution_id}?hack=${data}#hack-${data}` };
-}
-
-export async function deleteHack(form: FormData): Promise<ActionResult> {
-  const ctx = await context();
-  if (!ctx) return missingContext();
-  const id = field(form, 'id');
-  if (!uuidSchema.safeParse(id).success) return fail('invalid');
-  const { data: existing } = await ctx.db.from('hacks').select('author_id,solution_id').eq('id', id).maybeSingle();
-  if (!existing) return fail('missing');
-  if (existing.author_id !== ctx.user.id) return fail('permission');
-  const { error } = await ctx.db.rpc('delete_hack', { p_hack_id: id });
-  if (error) return dbError(error);
-  revalidatePath(`/solutions/${existing.solution_id}`);
-  return { ok: true, redirectTo: `/solutions/${existing.solution_id}` };
-}
-
 export async function saveComment(form: FormData): Promise<ActionResult> {
   const ctx = await context();
   if (!ctx) return missingContext();
-  const parsed = z.object({ content_md: markdown(20000), target_type: z.enum(['solution', 'hack']), target_id: uuidSchema }).safeParse({
+  const parsed = z.object({ content_md: contentSchema(100), target_type: z.literal('solution'), target_id: uuidSchema }).safeParse({
     content_md: fieldRaw(form, 'content_md'), target_type: field(form, 'target_type'), target_id: field(form, 'target_id')
   });
   if (!parsed.success) return validationError(parsed.error);
@@ -286,12 +243,12 @@ export async function saveComment(form: FormData): Promise<ActionResult> {
     if (existing.author_id !== ctx.user.id) return fail('permission');
     const { error } = await ctx.db.from('comments').update({ content_md: parsed.data.content_md }).eq('id', id);
     if (error) return dbError(error);
-    revalidatePath(`/solutions/${existing.target_type === 'solution' ? existing.target_id : await solutionOfHack(ctx.db, existing.target_id)}`);
+    revalidatePath(`/solutions/${existing.target_id}`);
     return { ok: true, id };
   }
   const { data, error } = await ctx.db.from('comments').insert(parsed.data).select('id').single();
   if (error) return dbError(error);
-  revalidatePath(`/solutions/${parsed.data.target_type === 'solution' ? parsed.data.target_id : await solutionOfHack(ctx.db, parsed.data.target_id)}`);
+  revalidatePath(`/solutions/${parsed.data.target_id}`);
   return { ok: true, id: data.id };
 }
 
@@ -305,24 +262,6 @@ export async function deleteComment(form: FormData): Promise<ActionResult> {
   if (existing.author_id !== ctx.user.id) return fail('permission');
   const { error } = await ctx.db.from('comments').delete().eq('id', id);
   if (error) return dbError(error);
-  revalidatePath(`/solutions/${existing.target_type === 'solution' ? existing.target_id : await solutionOfHack(ctx.db, existing.target_id)}`);
-  return { ok: true };
-}
-
-async function solutionOfHack(db: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>, hackId: string): Promise<string> {
-  const { data } = await db.from('hacks').select('solution_id').eq('id', hackId).maybeSingle();
-  return data?.solution_id ?? hackId;
-}
-
-export async function setVote(form: FormData): Promise<ActionResult> {
-  const ctx = await context();
-  if (!ctx) return missingContext();
-  const target_type = field(form, 'target_type') as TargetType;
-  const target_id = field(form, 'target_id');
-  const raw = field(form, 'value');
-  if (!['solution', 'hack'].includes(target_type) || !uuidSchema.safeParse(target_id).success || !['', '1', '-1'].includes(raw) || (target_type === 'solution' && raw === '-1')) return fail('invalid');
-  const { error } = await ctx.db.rpc('set_vote', { p_target_type: target_type, p_target_id: target_id, p_value: raw ? Number(raw) : null });
-  if (error) return dbError(error);
-  revalidatePath(`/solutions/${target_type === 'solution' ? target_id : await solutionOfHack(ctx.db, target_id)}`);
+  revalidatePath(`/solutions/${existing.target_id}`);
   return { ok: true };
 }

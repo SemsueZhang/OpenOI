@@ -38,15 +38,22 @@ fi
 
 docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
   < tests/database/plain_postgres_bootstrap.sql
-shopt -s nullglob
-migrations=(supabase/migrations/*.sql)
-if ((${#migrations[@]} == 0)); then
-  echo 'No database migrations found' >&2
+docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/migrations/20260929000000_initial.sql
+docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/migrations/20260929010000_content_limits.sql
+docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < tests/database/legacy_fixture.sql
+if docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
+  < supabase/migrations/20260929020000_simplify_content.sql >"$test_dir/preflight.log" 2>&1; then
+  echo 'Migration accepted a solution without original_url' >&2
   exit 1
 fi
-for migration in "${migrations[@]}"; do
-  docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < "$migration"
-done
+if ! rg -q 'original_url' "$test_dir/preflight.log"; then
+  cat "$test_dir/preflight.log" >&2
+  exit 1
+fi
+docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres \
+  -c "alter table public.solutions add column original_url text; update public.solutions set original_url='https://example.org/solution' where id='c3000000-0000-4000-8000-000000000001'"
+docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < supabase/migrations/20260929020000_simplify_content.sql
+docker exec -i "$container_name" psql -X -q -v ON_ERROR_STOP=1 -U postgres -d postgres < tests/database/migration_preservation.sql
 
 printf '#!/usr/bin/env bash\nexec docker exec -i %q psql "$@"\n' "$container_name" > "$test_dir/psql"
 chmod +x "$test_dir/psql"

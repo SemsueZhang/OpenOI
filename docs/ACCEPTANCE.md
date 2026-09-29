@@ -2,6 +2,31 @@
 
 记录日期：2026-09-29。本文区分代码/数据库验证与真实 Supabase 服务的端到端验证。
 
+## 当前改版：题目与做法链接
+
+以下为当前代码模型。后文保留的 Hack、投票和代码验收属于旧版本历史，不能视为新版功能。
+
+- 已移除 Hack 路由、表单、查询、写接口、投票及做法代码/算法/复杂度/语言字段；个人主页只保留题目与做法。
+- 题目采用正文与右侧栏布局，侧栏为八类固定标签、来源链接、相似题目链接和做法链接。做法独立页面展示标题、摘要、原文链接、作者、发布时间及讨论。
+- 表单、服务端和数据库同时执行正文/摘要 1000 字符、讨论 100 字符限制。字符按 Unicode 码点计算，新增 URL 列表、固定标签和边界测试。
+- `npm test` 17/17 通过，`npm run typecheck`、`npm run lint`、`npm run build` 通过。生产路由表已不包含 `/hack/new`。
+- `bash scripts/test-db-pglite.sh` 在 PostgreSQL WASM（PGlite）隔离环境已执行新旧迁移与权限/长度约束测试，验证旧数据预检查失败时回滚、补齐真实原文链接后保留做法与讨论、原来源 URL 转入新数组。PGlite 中模拟 Auth，历史 pgcrypto 扩展使用核心 UUID 函数替代，不等同于托管 Supabase Auth/PostgREST 验收。
+- 迁移前再次通过匿名只读查询确认托管 profiles/problems/solutions/hacks/votes/comments 均为 0 条；本轮未向正式数据库写入测试内容。
+- 在不含 Supabase 环境变量的临时项目副本中，以本地 fixture 实测题目、做法、发布/编辑表单。桌面 1280px 检查双栏与中英文侧栏；390px 手机题目页的长链接溢出已修复，最终 document.scrollWidth 与视口均为 390。做法页同样为 390。
+- 浏览器验证题目表单输入 1001 个 emoji 显示 1001/1000 并阻止提交；讨论输入 100 个 emoji 时允许提交、101 个时禁用，讨论编辑 101 字符同样禁用。该检查没有提交业务数据，不等同于托管写入端到端验证。
+- 最终 UI 修复后再次通过类型检查、Lint 与生产构建。预览 fixture 只存在于 `/private/tmp/openoi-redesign-preview`，不随仓库发布。
+- 本轮未启动 Docker、未发送测试邮件、未创建托管测试账号。用户确认后，20260929020000_simplify_content.sql 已通过 SQL Editor 在托管项目事务执行成功；本轮代码将通过 main 推送触发 Vercel 自动部署。
+
+## 首次 Vercel 上线
+
+- 用户明确授权将已验收代码推送到 `SemsueZhang/OpenOI` 的 `main`，并安装官方 Vercel GitHub 应用；安装时选择 Only select repositories，仅选中 OpenOI。
+- 免费 Hobby 项目 `acmm14/open-oi` 已创建。首次生产部署使用提交 `8a407540a4de11403f99900a06d0edb097994ec2`；Vercel 显示 Ready，构建耗时 56 秒。部署 ID 为 `F8SndP1pQ3MchcPeZKuxGB6Nq5vu`，生产域名为 `https://open-oi.vercel.app`。
+- 首次构建前已配置三个生产环境变量：Supabase URL、公开 publishable key、`NEXT_PUBLIC_SITE_URL=https://open-oi.vercel.app`。未上传数据库密码或 service-role key。
+- Supabase Auth 的 Site URL 已保存为正式 HTTPS 地址，允许列表增加 `https://open-oi.vercel.app/auth/confirm**` 并保留本地回调。
+- Safari 已访问正式域名并实际显示最新首页标题“算法竞赛中的开放问题”、真实题目空列表和筛选表单，无数据库配置提示；点击登录入口后邮箱密码表单正常加载。本机内置浏览器公网导航有超时，因此不将其视为浏览器验收通过。
+- 命令行公网 HTTP 检查未通过网络连接阶段：六个只读 GET 在 30 秒内超时，单独诊断也出现 TCP 连接超时/TLS 连接重置。未取得这些路由的 HTTP 状态码，不能据此断言其通过或失败；未修改用户的网络配置。线上浏览器已确认的范围以上一条 Safari 结果为准。
+- 用户明确暂缓邮箱测试；本轮不注册测试账号、不发送邮件、不写入托管业务数据。邮箱确认机制仍启用，自定义 SMTP 未配置，不能把部署就绪当作公众注册邮件验收通过。
+
 ## 本次托管连接与修复
 
 - 已创建 OpenOI 免费组织与 OpenOI 托管项目（首尔，项目标识 `rnwojkpmsmypeaetxknr`）。确认 public schema 没有已有业务表后，在事务中执行 initial 与 content_limits 两份迁移；控制台返回成功，随后查询确认六张业务表均启用 RLS，新增 CHECK 约束已存在。

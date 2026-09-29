@@ -6,14 +6,13 @@ import { useI18n } from '@/components/i18n';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import type { ProblemFilters } from '@/lib/types';
+import { PROBLEM_TAGS } from '@/lib/security';
 
 export function ProblemFiltersForm({ filters }: { filters: ProblemFilters }) {
   const { t } = useI18n();
-  return <form action="/" method="get" className="rounded-xl border border-edge bg-panel p-4 sm:p-5"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_150px_minmax(0,1fr)_auto]">
+  return <form action="/" method="get" className="rounded-xl border border-edge bg-panel p-4 sm:p-5"><div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]">
     <label className="relative"><span className="sr-only">{t('search')}</span><Search size={17} className="pointer-events-none absolute left-3 top-3 text-muted"/><Input className="pl-9" name="q" defaultValue={filters.q || ''} placeholder={t('searchPlaceholder')}/></label>
-    <label><span className="sr-only">{t('source')}</span><Input name="source" defaultValue={filters.source || ''} placeholder={t('sourcePlaceholder')}/></label>
-    <label><span className="sr-only">{t('difficulty')}</span><select name="difficulty" defaultValue={filters.difficulty || ''} className="h-10 w-full rounded-lg border border-edge bg-panel-elevated px-3 text-sm text-ink focus:border-electric focus:ring-2 focus:ring-electric/20"><option value="">{t('all')} {t('difficulty')}</option><option value="easy">{t('easy')}</option><option value="medium">{t('medium')}</option><option value="hard">{t('hard')}</option></select></label>
-    <label><span className="sr-only">{t('tag')}</span><Input name="tag" defaultValue={filters.tag || ''} placeholder={t('tagPlaceholder')}/></label>
+    <label><span className="sr-only">{t('tag')}</span><select name="tag" defaultValue={filters.tag || ''} className="h-10 w-full rounded-lg border border-edge bg-panel-elevated px-3 text-sm text-ink focus:border-electric focus:ring-2 focus:ring-electric/20"><option value="">{t('all')} {t('tags')}</option>{PROBLEM_TAGS.map(tag => <option key={tag} value={tag}>{tag}</option>)}</select></label>
     <Button type="submit"><Search size={16}/>{t('filter')}</Button>
   </div><div className="mt-2 flex justify-end"><Link href="/" className="text-xs text-muted hover:text-electric">{t('reset')}</Link></div></form>;
 }

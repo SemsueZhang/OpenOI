@@ -9,7 +9,7 @@ export function ListPagination<T>({ result, pathname, query, pageKey, anchor }: 
   if (result.pages <= 1) return null;
   const href = (page: number) => {
     const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(query)) if (value && key !== pageKey && !(pageKey === 'hackPage' && (key === 'hack' || key === 'hackComments' || key === 'hackCommentPage'))) params.set(key, value);
+    for (const [key, value] of Object.entries(query)) if (value && key !== pageKey) params.set(key, value);
     params.set(pageKey, String(page));
     return `${pathname}?${params}${anchor ? `#${anchor}` : ''}`;
   };

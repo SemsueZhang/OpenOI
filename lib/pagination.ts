@@ -8,7 +8,3 @@ export function pageRange(page: number): [number, number] {
   const start = (normalizePage(page) - 1) * PAGE_SIZE;
   return [start, start + PAGE_SIZE - 1];
 }
-
-export function pageForRank(rank: number): number {
-  return Math.floor(rank / PAGE_SIZE) + 1;
-}

@@ -6,7 +6,7 @@ import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 import './globals.css';
 
-export const metadata: Metadata = { title: 'OpenOI', description: '算法题解社区 · An open community for algorithm solutions' };
+export const metadata: Metadata = { title: 'OpenOI', description: '算法题目与做法社区 · An open community for algorithm approaches' };
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

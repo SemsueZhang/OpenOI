@@ -1,211 +1,134 @@
 \set ON_ERROR_STOP on
--- Run only against a disposable Supabase database. The transaction always rolls back.
+-- Run only against a disposable database. All fixture writes roll back.
 begin;
 
 do $$
-declare view_name text; role_name text; privilege_name text;
 begin
-  foreach view_name in array array['public.problem_summaries','public.solution_summaries','public.hack_summaries'] loop
-    foreach role_name in array array['anon','authenticated'] loop
-      if not has_table_privilege(role_name, view_name, 'SELECT') then
-        raise exception '% cannot read %', role_name, view_name;
-      end if;
-      foreach privilege_name in array array['INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER'] loop
-        if has_table_privilege(role_name, view_name, privilege_name) then
-          raise exception '% has unexpected % on %', role_name, privilege_name, view_name;
-        end if;
-      end loop;
-    end loop;
-  end loop;
+  if to_regclass('public.hacks') is not null or to_regclass('public.votes') is not null
+     or to_regclass('public.hack_summaries') is not null
+     or to_regprocedure('public.set_vote(text,uuid,integer)') is not null
+     or to_regprocedure('public.create_hack(uuid,text,text,text,text,text)') is not null then
+    raise exception 'Removed hack/vote schema remains';
+  end if;
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'problems' and column_name in ('source','external_url','difficulty'))
+    or exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'solutions' and column_name in ('algorithm','code','language','time_complexity','space_complexity','status')) then
+    raise exception 'Removed columns remain';
+  end if;
+  if exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'comments' and column_name = 'hack_target_id') then
+    raise exception 'Hack comment FK remains';
+  end if;
+  if not has_table_privilege('anon','public.problem_summaries','SELECT')
+    or not has_table_privilege('anon','public.solution_summaries','SELECT') then
+    raise exception 'Summary view read grants missing';
+  end if;
 end;
 $$;
 
 insert into auth.users(id, instance_id, aud, role, email, encrypted_password, raw_user_meta_data)
 values
 ('a0000000-0000-4000-8000-000000000001', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'openoi-a@example.invalid', '', '{"username":"author_a"}'),
-('a0000000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'openoi-b@example.invalid', '', '{"username":"author_b"}'),
-('a0000000-0000-4000-8000-000000000003', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'openoi-c@example.invalid', '', '{"username":"voter_c"}'),
-('a0000000-0000-4000-8000-000000000004', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'openoi-d@example.invalid', '', '{"username":"voter_d"}');
+('a0000000-0000-4000-8000-000000000002', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'openoi-b@example.invalid', '', '{"username":"author_b"}');
+
+insert into public.problems(id,created_by,title,source_urls,similar_urls,tags,statement_md)
+values ('b0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','Fixture',array['https://example.org/problem'],array['https://example.org/similar'],array['图论','数学'],'Statement');
+insert into public.solutions(id,problem_id,author_id,title,content_md,original_url)
+values ('c0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','Solution','Summary','https://example.org/solution');
 
 do $$
 begin
-  if (select count(*) from public.profiles where username in ('author_a','author_b','voter_c','voter_d')) <> 4 then
-    raise exception 'Registration profile trigger failed';
+  if (select solution_count from public.problem_summaries where id = 'b0000000-0000-4000-8000-000000000001') <> 1 then
+    raise exception 'Problem solution count incorrect';
   end if;
-  begin
-    insert into auth.users(id, instance_id, aud, role, email, encrypted_password, raw_user_meta_data)
-    values ('a0000000-0000-4000-8000-000000000005', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'openoi-bad@example.invalid', '', '{"username":"Bad Name"}');
-    raise exception 'Invalid username accepted';
-  exception when check_violation then null;
-  end;
+  if (select original_url from public.solution_summaries where id = 'c0000000-0000-4000-8000-000000000001') <> 'https://example.org/solution' then
+    raise exception 'Solution view incorrect';
+  end if;
 end;
 $$;
 
-insert into public.problems(id,created_by,title,difficulty,statement_md)
-values ('b0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','Fixture','easy','Statement');
-insert into public.solutions(id,problem_id,author_id,title,content_md)
-values ('c0000000-0000-4000-8000-000000000001','b0000000-0000-4000-8000-000000000001','a0000000-0000-4000-8000-000000000001','Solution','Content');
 set local role authenticated;
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
-
+select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002', true);
 do $$
 begin
-  begin
-    perform public.set_vote('solution','c0000000-0000-4000-8000-000000000001',1);
-    raise exception 'Self-vote accepted';
-  exception when insufficient_privilege then null;
-  end;
-  begin
-    execute 'update public.solutions set status = ''hacked'' where id = ''c0000000-0000-4000-8000-000000000001''';
-    raise exception 'Direct status edit accepted';
-  exception when insufficient_privilege then null;
-  end;
-  begin
-    execute 'insert into public.solutions(problem_id,author_id,title,content_md) values (''b0000000-0000-4000-8000-000000000001'',''a0000000-0000-4000-8000-000000000002'',''Forged'',''x'')';
-    raise exception 'Forged author accepted';
-  exception when insufficient_privilege then null;
-  end;
-  begin
-    execute 'insert into public.hacks(solution_id,type,content_md) values (''c0000000-0000-4000-8000-000000000001'',''logic'',''x'')';
-    raise exception 'Direct hack insert accepted';
-  exception when insufficient_privilege then null;
-  end;
-  begin
-    execute 'insert into public.votes(target_type,target_id,value) values (''solution'',''c0000000-0000-4000-8000-000000000001'',1)';
-    raise exception 'Direct vote insert accepted';
-  exception when insufficient_privilege then null;
-  end;
+  update public.problems set title = 'Hijacked' where id = 'b0000000-0000-4000-8000-000000000001';
+  if found then raise exception 'Other author edited problem'; end if;
+  update public.solutions set content_md = 'Hijacked' where id = 'c0000000-0000-4000-8000-000000000001';
+  if found then raise exception 'Other author edited solution'; end if;
   begin
     execute 'update public.problems set created_by = ''a0000000-0000-4000-8000-000000000002'' where id = ''b0000000-0000-4000-8000-000000000001''';
     raise exception 'Creator edit accepted';
-  exception when insufficient_privilege then null;
-  end;
-end;
-$$;
-
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002', true);
-select public.create_hack('c0000000-0000-4000-8000-000000000001','counterexample','Evidence','','1','2') as hack_id \gset
-select set_config('openoi.test_hack_id', :'hack_id', true);
-
-do $$
-begin
-  if (select status from public.solutions where id = 'c0000000-0000-4000-8000-000000000001') <> 'disputed' then
-    raise exception 'Unvoted hack must dispute solution';
-  end if;
+  exception when insufficient_privilege then null; end;
   begin
-    perform public.set_vote('hack', current_setting('openoi.test_hack_id')::uuid, 1);
-    raise exception 'Hack self-vote accepted';
-  exception when insufficient_privilege then null;
-  end;
+    execute 'update public.solutions set problem_id = ''b0000000-0000-4000-8000-000000000001'' where id = ''c0000000-0000-4000-8000-000000000001''';
+    raise exception 'Solution target edit accepted';
+  exception when insufficient_privilege then null; end;
+  begin
+    execute 'insert into public.problems(created_by,title,statement_md) values (''a0000000-0000-4000-8000-000000000001'',''Forged'',''x'')';
+    raise exception 'Forged problem author accepted';
+  exception when insufficient_privilege then null; end;
+  begin
+    execute 'insert into public.solutions(problem_id,author_id,title,content_md,original_url) values (''b0000000-0000-4000-8000-000000000001'',''a0000000-0000-4000-8000-000000000001'',''Forged'',''x'',''https://example.org/x'')';
+    raise exception 'Forged solution author accepted';
+  exception when insufficient_privilege then null; end;
+  begin
+    execute 'insert into public.comments(author_id,target_type,target_id,content_md) values (''a0000000-0000-4000-8000-000000000001'',''solution'',''c0000000-0000-4000-8000-000000000001'',''Forged'')';
+    raise exception 'Forged comment author accepted';
+  exception when insufficient_privilege then null; end;
+  begin
+    execute 'insert into public.comments(solution_target_id,target_type,target_id,content_md) values (''c0000000-0000-4000-8000-000000000001'',''solution'',''c0000000-0000-4000-8000-000000000001'',''Forged'')';
+    raise exception 'Generated target spoof accepted';
+  exception when insufficient_privilege or sqlstate '428C9' then null; end;
   begin
     insert into public.comments(target_type,target_id,content_md)
-    values ('hack','d0000000-0000-4000-8000-000000000099','orphan');
+    values ('hack','c0000000-0000-4000-8000-000000000001','No');
+    raise exception 'Hack target comment accepted';
+  exception when check_violation then null; end;
+  begin
+    insert into public.comments(target_type,target_id,content_md)
+    values ('solution','c0000000-0000-4000-8000-000000000099','No');
     raise exception 'Orphan comment accepted';
-  exception when foreign_key_violation then null;
-  end;
+  exception when foreign_key_violation then null; end;
   begin
-    perform public.set_vote('hack','d0000000-0000-4000-8000-000000000099',1);
-    raise exception 'Orphan vote accepted';
-  exception when no_data_found then null;
-  end;
+    insert into public.comments(target_type,content_md) values ('solution','No');
+    raise exception 'Null comment target accepted';
+  exception when not_null_violation then null; end;
+  insert into public.comments(target_type,target_id,content_md)
+  values ('solution','c0000000-0000-4000-8000-000000000001','Useful comment');
   begin
-    update public.problems set title = 'Hijacked' where id = 'b0000000-0000-4000-8000-000000000001';
-    if found then raise exception 'Other author problem edit accepted'; end if;
-  end;
-  begin
-    update public.solutions set content_md = 'Hijacked' where id = 'c0000000-0000-4000-8000-000000000001';
-    if found then raise exception 'Other author solution edit accepted'; end if;
-  end;
+    execute 'update public.comments set target_id = ''c0000000-0000-4000-8000-000000000099'' where content_md = ''Useful comment''';
+    raise exception 'Comment target edit accepted';
+  exception when insufficient_privilege then null; end;
 end;
 $$;
 
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000003', true);
-select public.set_vote('hack', current_setting('openoi.test_hack_id')::uuid, 1);
-do $$ begin
-  if (select status from public.hacks where id = current_setting('openoi.test_hack_id')::uuid) <> 'valid' then raise exception 'Valid vote missed'; end if;
-  if (select status from public.solutions where id = 'c0000000-0000-4000-8000-000000000001') <> 'hacked' then raise exception 'Solution not hacked'; end if;
-end $$;
-select public.set_vote('solution', 'c0000000-0000-4000-8000-000000000001', 1);
-do $$ begin
-  if (select vote_count from public.solution_summaries where id = 'c0000000-0000-4000-8000-000000000001') <> 1 then raise exception 'Solution useful vote missed'; end if;
-  begin
-    perform public.set_vote('solution', 'c0000000-0000-4000-8000-000000000001', -1);
-    raise exception 'Negative solution vote accepted';
-  exception when invalid_parameter_value then null;
-  end;
-  begin
-    perform public.set_vote(null, 'c0000000-0000-4000-8000-000000000001', 1);
-    raise exception 'Missing vote type accepted';
-  exception when invalid_parameter_value then null;
-  end;
-end $$;
-select public.set_vote('solution', 'c0000000-0000-4000-8000-000000000001', null);
 select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
-update public.solutions set content_md = 'Edited response' where id = 'c0000000-0000-4000-8000-000000000001';
-do $$ begin
-  if (select status from public.solutions where id = 'c0000000-0000-4000-8000-000000000001') <> 'hacked' then raise exception 'Editing content cleared hack status'; end if;
-  begin
-    perform public.delete_hack(current_setting('openoi.test_hack_id')::uuid);
-    raise exception 'Other author hack deletion accepted';
-  exception when insufficient_privilege then null;
-  end;
-end $$;
-
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000004', true);
-select public.set_vote('hack', current_setting('openoi.test_hack_id')::uuid, -1);
-do $$ begin
-  if (select status from public.hacks where id = current_setting('openoi.test_hack_id')::uuid) <> 'pending' then raise exception 'Tie not pending'; end if;
-end $$;
-select public.set_vote('hack', current_setting('openoi.test_hack_id')::uuid, 1);
-do $$ begin
-  if (select status from public.hacks where id = current_setting('openoi.test_hack_id')::uuid) <> 'valid' then raise exception 'Vote switch failed'; end if;
-end $$;
-select public.set_vote('hack', current_setting('openoi.test_hack_id')::uuid, null);
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000003', true);
-select public.set_vote('hack', current_setting('openoi.test_hack_id')::uuid, -1);
-do $$ begin
-  if (select status from public.hacks where id = current_setting('openoi.test_hack_id')::uuid) <> 'invalid' then raise exception 'Retract/revote failed'; end if;
-  if (select status from public.solutions where id = 'c0000000-0000-4000-8000-000000000001') <> 'normal' then raise exception 'Invalid-only solution not normal'; end if;
-end $$;
-
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002', true);
-select public.create_hack('c0000000-0000-4000-8000-000000000001','logic','Second evidence','','','') as second_hack_id \gset
-select set_config('openoi.test_second_hack_id', :'second_hack_id', true);
-do $$ begin
-  if (select status from public.solutions where id = 'c0000000-0000-4000-8000-000000000001') <> 'disputed' then raise exception 'Pending priority failed'; end if;
-end $$;
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000004', true);
-select public.set_vote('hack', current_setting('openoi.test_second_hack_id')::uuid, 1);
-do $$ begin
-  if (select status from public.solutions where id = 'c0000000-0000-4000-8000-000000000001') <> 'hacked' then raise exception 'Valid priority failed'; end if;
-end $$;
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000002', true);
-select public.delete_hack(:'second_hack_id');
-do $$ begin
-  if (select status from public.solutions where id = 'c0000000-0000-4000-8000-000000000001') <> 'normal' then raise exception 'Delete last valid failed'; end if;
-end $$;
-select public.delete_hack(:'hack_id');
-
-insert into public.comments(target_type,target_id,content_md)
-values ('solution','c0000000-0000-4000-8000-000000000001','Author reply');
-select set_config('request.jwt.claim.sub', 'a0000000-0000-4000-8000-000000000001', true);
-delete from public.problems where id = 'b0000000-0000-4000-8000-000000000001';
-do $$ begin
-  if exists(select 1 from public.solutions where id = 'c0000000-0000-4000-8000-000000000001') then raise exception 'Solution cascade failed'; end if;
-  if exists(select 1 from public.comments where target_id = 'c0000000-0000-4000-8000-000000000001') then raise exception 'Comment cascade failed'; end if;
-end $$;
+do $$
+begin
+  update public.comments set content_md = 'Hijacked' where content_md = 'Useful comment';
+  if found then raise exception 'Other author edited comment'; end if;
+  delete from public.comments where content_md = 'Useful comment';
+  if found then raise exception 'Other author deleted comment'; end if;
+  update public.problems set title = 'Owner edit' where id = 'b0000000-0000-4000-8000-000000000001';
+  if not found then raise exception 'Problem owner could not edit'; end if;
+  update public.solutions set content_md = 'Owner summary' where id = 'c0000000-0000-4000-8000-000000000001';
+  if not found then raise exception 'Solution owner could not edit'; end if;
+  delete from public.problems where id = 'b0000000-0000-4000-8000-000000000001';
+  if not found then raise exception 'Problem owner could not delete'; end if;
+  if exists(select 1 from public.solutions where id='c0000000-0000-4000-8000-000000000001')
+    or exists(select 1 from public.comments where target_id='c0000000-0000-4000-8000-000000000001') then
+    raise exception 'Solution/comment cascade failed';
+  end if;
+end;
+$$;
 
 set local role anon;
 select count(*) from public.problem_summaries;
 select count(*) from public.solution_summaries;
-select count(*) from public.hack_summaries;
 do $$
 begin
   begin
-    insert into public.problems(title,difficulty,statement_md) values ('Anonymous','easy','x');
+    insert into public.problems(title,statement_md) values ('Anonymous','x');
     raise exception 'Anonymous write accepted';
-  exception when insufficient_privilege then null;
-  end;
+  exception when insufficient_privilege then null; end;
 end;
 $$;
 rollback;
