@@ -61,7 +61,7 @@ npm run dev
 
 新项目在 SQL Editor 中按文件名顺序执行 `supabase/migrations/` 的全部文件。历史迁移保留旧模型以支持顺序升级，最后一份迁移将其转换为当前四张业务表：`profiles`、`problems`、`solutions`、`comments`。
 
-已有项目只执行尚未应用的迁移。当前托管项目已通过 SQL Editor 手动执行了三份迁移（含本轮 simplify_content），不能直接重跑 initial。仓库现提供 GitHub Actions 自动迁移流程，首次启用需要对齐迁移记录并设置一个 GitHub 环境密钥，详见 [自动迁移配置](docs/AUTOMIGRATION.md)。
+已有项目只执行尚未应用的迁移。当前托管项目的三份历史迁移（含本轮 simplify_content）已登记，GitHub 生产环境密钥已配置，自动迁移的验证与生产任务均已通过；不要重新执行 initial。日常使用与其他环境首次接入步骤见 [自动迁移配置](docs/AUTOMIGRATION.md)。
 
 **本轮迁移会删除旧 Hack、投票、Hack 下的评论及做法的代码等已移除字段。执行前备份现有数据库并检查迁移文件。** 对保留的题目、做法及讨论，迁移不会静默截断内容，也不会伪造原文链接。存在超长正文/摘要/讨论、旧自定义标签或缺少原文链接的做法时，预检查会阻止升级；先整理数据并补齐链接，再重试。事务中执行，避免部分升级。详细预检查规则见最新 SQL 文件注释。
 
