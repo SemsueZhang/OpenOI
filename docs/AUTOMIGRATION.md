@@ -34,10 +34,10 @@ OpenOI 此前已在 SQL Editor 执行以下文件：
 
 从 Supabase 项目顶部 **Connect** → Connection string → **Session pooler** 获取地址。将连接模板中的密码占位符替换为建项目时设置的**数据库密码**，它不是 Supabase 网站登录密码，也不是 publishable key。密码含 `@`、`#`、`%` 等字符时必须进行 URL 编码；不要使用在线编码网站处理密码。
 
-格式如下，`POOLER_HOST` 必须使用控制台实际显示的地址：
+OpenOI 当前控制台的 Session pooler 地址如下，替换 `URL_ENCODED_PASSWORD`：
 
 ```text
-postgresql://postgres.rnwojkpmsmypeaetxknr:URL_ENCODED_PASSWORD@POOLER_HOST:5432/postgres?sslmode=require
+postgresql://postgres.rnwojkpmsmypeaetxknr:URL_ENCODED_PASSWORD@aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres?sslmode=require
 ```
 
 必须选择 Session pooler，不能用端口 6543 的 Transaction pooler。工作流校验目标项目、连接域名和 TLS，拒绝额外连接参数。无需 Supabase access token、service-role key 或 Vercel 数据库密钥。不要将此 URI 放入 Git、聊天、日志或 `NEXT_PUBLIC_*`。
@@ -59,3 +59,7 @@ bash scripts/test-db-pglite.sh
 ```
 
 完整 PostgreSQL 验证由 GitHub Actions 的隔离 Docker 完成。本地 Docker 仍保持用户选择的停止状态。
+
+## 当前接入记录（2026-09-29）
+
+生产库的一次性历史登记已执行成功，并查询确认上述三个版本全部存在。GitHub 工作流已触发；首次运行在下载测试镜像时被 ECR 限流，脚本已增加官方 Docker Hub 镜像作为备用来源。数据库密钥与首次生产任务仍需完成后才能确认自动迁移可用。

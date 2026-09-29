@@ -16,7 +16,18 @@ cleanup() {
 trap cleanup EXIT
 
 if ! docker image inspect "$image" >/dev/null 2>&1; then
-  docker pull "$image"
+  if ! docker pull "$image"; then
+    if [[ -n ${OPENOI_TEST_POSTGRES_IMAGE:-} ]]; then
+      echo "Could not pull configured PostgreSQL image: $image" >&2
+      exit 1
+    fi
+    # The ECR public mirror can rate-limit anonymous pulls on CI runners.
+    image=postgres:15
+    echo "ECR mirror unavailable; trying official Docker Hub image: $image" >&2
+    if ! docker image inspect "$image" >/dev/null 2>&1; then
+      docker pull "$image"
+    fi
+  fi
 fi
 docker run --pull=never --rm --name "$container_name" \
   -e POSTGRES_PASSWORD=test -d "$image" >/dev/null
