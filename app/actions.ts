@@ -28,18 +28,18 @@ const messages = {
   }
 } as const;
 type MessageKey = keyof typeof messages.zh;
-function fail(key: MessageKey): ActionResult { return { ok: false, error: messages[getLocale()][key] }; }
+async function fail(key: MessageKey): Promise<ActionResult> { return { ok: false, error: messages[await getLocale()][key] }; }
 function field(form: FormData, name: string): string { const value = form.get(name); return typeof value === 'string' ? value.trim() : ''; }
 function fieldRaw(form: FormData, name: string): string { const value = form.get(name); return typeof value === 'string' ? value : ''; }
 function nullable(value: string): string | null { return value || null; }
 const markdown = (max: number) => z.string().max(max).refine((value) => value.trim().length > 0);
-function validationError(error: z.ZodError): ActionResult {
+async function validationError(error: z.ZodError): Promise<ActionResult> {
   const first = error.issues[0];
   if (first?.message === 'invalid_username') return fail('username');
   if (first?.path.includes('external_url') || first?.path.includes('avatar_url')) return fail('url');
   return fail('invalid');
 }
-function dbError(error: { code?: string; message?: string } | null): ActionResult {
+async function dbError(error: { code?: string; message?: string } | null): Promise<ActionResult> {
   if (/own content|own target/i.test(error?.message ?? '')) return fail('selfVote');
   if (error?.code === '23505') return fail('duplicate');
   if (error?.code === 'P0002') return fail('missing');
@@ -47,13 +47,13 @@ function dbError(error: { code?: string; message?: string } | null): ActionResul
   return fail('failed');
 }
 async function context() {
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return null;
   const { data, error } = await db.auth.getUser();
   if (error || !data.user) return null;
   return { db, user: data.user };
 }
-function missingContext(): ActionResult { return isSupabaseConfigured() ? fail('login') : fail('config'); }
+function missingContext(): Promise<ActionResult> { return isSupabaseConfigured() ? fail('login') : fail('config'); }
 
 const optionalUrl = z.union([z.literal(''), httpUrlSchema]).transform(nullable);
 const problemSchema = z.object({
@@ -78,7 +78,7 @@ function confirmationRedirect(next: string): string | null {
 }
 
 export async function signUp(form: FormData): Promise<ActionResult> {
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return fail('config');
   const parsed = z.object({ email: z.string().email().max(320), password: z.string().min(8).max(128), username: usernameSchema }).safeParse({
     email: field(form, 'email'), password: fieldRaw(form, 'password'), username: field(form, 'username')
@@ -89,11 +89,11 @@ export async function signUp(form: FormData): Promise<ActionResult> {
   const emailRedirectTo = confirmationRedirect(field(form, 'redirectTo'));
   if (!emailRedirectTo) return fail('config');
   const { error } = await db.auth.signUp({ email: parsed.data.email, password: parsed.data.password, options: { data: { username: parsed.data.username }, emailRedirectTo } });
-  return error ? dbError(error) : { ok: true, message: messages[getLocale()].email };
+  return error ? dbError(error) : { ok: true, message: messages[await getLocale()].email };
 }
 
 export async function resendConfirmation(form: FormData): Promise<ActionResult> {
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return fail('config');
   const parsed = z.string().email().max(320).safeParse(field(form, 'email'));
   if (!parsed.success) return fail('invalid');
@@ -104,11 +104,11 @@ export async function resendConfirmation(form: FormData): Promise<ActionResult> 
   // Supabase may distinguish existing, missing and already confirmed accounts.
   // Treat those 4xx outcomes alike; report transport/server failures separately.
   if (error && (!error.status || error.status >= 500)) return fail('failed');
-  return { ok: true, message: messages[getLocale()].resent };
+  return { ok: true, message: messages[await getLocale()].resent };
 }
 
 export async function signIn(form: FormData): Promise<ActionResult> {
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return fail('config');
   const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse({ email: field(form, 'email'), password: fieldRaw(form, 'password') });
   if (!parsed.success) return validationError(parsed.error);
@@ -119,7 +119,7 @@ export async function signIn(form: FormData): Promise<ActionResult> {
 }
 
 export async function signOut(_form?: FormData): Promise<ActionResult> {
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return fail('config');
   const { error } = await db.auth.signOut();
   if (error) return dbError(error);
@@ -130,7 +130,7 @@ export async function signOut(_form?: FormData): Promise<ActionResult> {
 export async function setLocale(form: FormData): Promise<ActionResult> {
   const locale = field(form, 'locale');
   if (locale !== 'zh' && locale !== 'en') return fail('invalid');
-  cookies().set(LOCALE_COOKIE, locale, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
+  (await cookies()).set(LOCALE_COOKIE, locale, { path: '/', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
   revalidatePath('/', 'layout');
   return { ok: true, redirectTo: safeSitePath(field(form, 'redirectTo')) };
 }
@@ -308,7 +308,7 @@ export async function deleteComment(form: FormData): Promise<ActionResult> {
   return { ok: true };
 }
 
-async function solutionOfHack(db: NonNullable<ReturnType<typeof createSupabaseServerClient>>, hackId: string): Promise<string> {
+async function solutionOfHack(db: NonNullable<Awaited<ReturnType<typeof createSupabaseServerClient>>>, hackId: string): Promise<string> {
   const { data } = await db.from('hacks').select('solution_id').eq('id', hackId).maybeSingle();
   return data?.solution_id ?? hackId;
 }

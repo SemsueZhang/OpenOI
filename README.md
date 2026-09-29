@@ -2,7 +2,7 @@
 
 算法题解社区 MVP：发布题目与解法，以反例、逻辑漏洞、复杂度问题和边界情况发起 Hack，再由社区投票验证。公开浏览，登录后发布、评论和投票。默认中文，可切换英文界面；语言保存在 cookie，不改变路由、不翻译用户内容。
 
-技术栈：Next.js 14.2.35 App Router、React 18、TypeScript、Tailwind CSS 3、源码内置（vendored）的 shadcn/ui 兼容组件、Supabase PostgreSQL/Auth、react-markdown、GFM、KaTeX 和 highlight.js。UI 组件位于 `components/ui`，附带 `components.json` 配置。推荐 Node.js 22（见 `.nvmrc`），依赖以 `package-lock.json` 为准。
+技术栈：Next.js 16.3.6 App Router、React 19、TypeScript、Tailwind CSS 3、源码内置（vendored）的 shadcn/ui 兼容组件、Supabase PostgreSQL/Auth、react-markdown、GFM、KaTeX 和 highlight.js。UI 组件位于 `components/ui`，附带 `components.json` 配置。推荐 Node.js 22（见 `.nvmrc`），依赖以 `package-lock.json` 为准。
 
 不提供代码执行、评测、排名、测试数据管理、通知或版本历史。Hack 输入与输出仅是用户填写的文本证据。头像和 Markdown 图片只引用 HTTP(S) URL，没有文件上传入口，无需创建 Supabase Storage bucket；可引用已有公开 Storage URL。
 
@@ -121,7 +121,7 @@ npx supabase status
 3. 按前文完成 Supabase 迁移、邮箱模板及 Site URL/Redirect URLs 配置。更换域名或公开环境变量后重新部署。
 4. 用真实邮箱完成注册确认、登录、发布、投票和退出检查。未完成这一步，不应把单元测试或 PostgreSQL 验收视为 Auth 端到端验收。
 
-本轮 `npm audit` 报告 5 项依赖漏洞（4 high、1 critical），其中 critical 涉及当前要求使用的 Next.js 14.2.35；审计建议的框架修复需要升级主版本。项目保留 Next.js 14 技术栈，正式上线前需处理依赖安全问题，详见验收记录。
+项目已从 Next.js 14/React 18 升级到 Next.js 16.3.6/React 19.3.0；升级后 `npm audit` 未报告已知依赖漏洞。仍应在部署前复查审计结果并完成真实服务回归，详见验收记录。
 
 ## 验证
 

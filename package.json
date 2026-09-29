@@ -2,12 +2,14 @@
   "name": "openoi",
   "version": "0.1.0",
   "private": true,
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "tsx --tsconfig tsconfig.test.json --test tests/*.test.ts",
     "test:db": "bash scripts/test-db.sh",
@@ -28,9 +30,9 @@
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
     "lucide-react": "^0.468.0",
-    "next": "14.2.35",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "react-markdown": "^9.0.3",
     "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",
@@ -43,14 +45,18 @@
     "@tailwindcss/typography": "^0.5.19",
     "@types/katex": "^0.16.7",
     "@types/node": "^20.19.0",
-    "@types/react": "^18.3.23",
-    "@types/react-dom": "^18.3.7",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "autoprefixer": "^10.4.21",
-    "eslint": "^8.57.1",
-    "eslint-config-next": "14.2.35",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.6",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
+  },
+  "overrides": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0"
   }
 }

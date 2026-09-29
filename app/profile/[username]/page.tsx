@@ -4,7 +4,8 @@ import { getCurrentUser, getProfileByUsername, getUserContent } from '@/lib/data
 import { ConfigNotice } from '@/components/content';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 
-export default async function UserProfilePage({ params }: { params: { username: string } }) {
+export default async function UserProfilePage(props: { params: Promise<{ username: string }> }) {
+  const params = await props.params;
   if (!isSupabaseConfigured()) return <ConfigNotice/>;
   const [profile, { user }] = await Promise.all([getProfileByUsername(params.username), getCurrentUser()]);
   if (!profile) notFound();

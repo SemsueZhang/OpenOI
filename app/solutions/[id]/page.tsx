@@ -4,7 +4,8 @@ import { getComments, getCurrentUser, getHacks, getProblem, getSolution } from '
 import { ConfigNotice } from '@/components/content';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 
-export default async function SolutionPage({ params }: { params: { id: string } }) {
+export default async function SolutionPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSupabaseConfigured()) return <ConfigNotice/>;
   const [solution, { user }] = await Promise.all([getSolution(params.id), getCurrentUser()]);
   if (!solution) notFound();

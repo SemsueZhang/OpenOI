@@ -26,7 +26,7 @@ export function Markdown({ children, className = '' }: { children: string; class
         a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noopener noreferrer nofollow" />,
         // User supplied URLs are validated above and must not be fetched by the Next image optimizer.
         // eslint-disable-next-line @next/next/no-img-element
-        img: ({ node: _node, src, alt, ...props }) => src && safeUrl(src, true) ? <img {...props} src={src} alt={alt || ''} loading="lazy" /> : null,
+        img: ({ node: _node, src, alt, ...props }) => typeof src === 'string' && safeUrl(src, true) ? <img {...props} src={src} alt={alt || ''} loading="lazy" /> : null,
       }}>
       {children}
     </ReactMarkdown>

@@ -5,7 +5,8 @@ import { getCurrentUser, getProblem, getSolution } from '@/lib/data';
 import { ConfigNotice } from '@/components/content';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 
-export default async function NewSolutionPage({ searchParams }: { searchParams: { problem_id?: string; edit?: string } }) {
+export default async function NewSolutionPage(props: { searchParams: Promise<{ problem_id?: string; edit?: string }> }) {
+  const searchParams = await props.searchParams;
   if (!isSupabaseConfigured()) return <ConfigNotice/>;
   const { user } = await getCurrentUser();
   const solution = searchParams.edit ? await getSolution(searchParams.edit) : undefined;

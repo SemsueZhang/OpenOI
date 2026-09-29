@@ -26,7 +26,7 @@ async function attachVotes<T extends { id: string; my_vote?: number | null }>(db
 }
 
 export async function getCurrentUser(): Promise<{ user: Awaited<ReturnType<SupabaseClient['auth']['getUser']>>['data']['user']; profile: Profile | null }> {
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return { user: null, profile: null };
   const { data } = await db.auth.getUser();
   if (!data.user) return { user: null, profile: null };
@@ -36,7 +36,7 @@ export async function getCurrentUser(): Promise<{ user: Awaited<ReturnType<Supab
 
 export async function getProblems(filters: ProblemFilters = {}): Promise<Paged<Problem>> {
   const page = Number.isSafeInteger(filters.page) && (filters.page ?? 0) > 0 ? filters.page! : 1;
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return { items: [], page, total: 0, pages: 0 };
   let query = db.from('problem_summaries').select('*', { count: 'exact' });
   if (filters.q?.trim()) query = query.ilike('title', `%${filters.q.trim().replace(/[\\%_]/g, '\\$&')}%`);
@@ -50,7 +50,7 @@ export async function getProblems(filters: ProblemFilters = {}): Promise<Paged<P
 
 export async function getProblem(id: string): Promise<Problem | null> {
   if (!uuidSchema.safeParse(id).success) return null;
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return null;
   const { data, error } = await db.from('problem_summaries').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
@@ -59,7 +59,7 @@ export async function getProblem(id: string): Promise<Problem | null> {
 
 export async function getSolutions(problemId: string): Promise<Solution[]> {
   if (!uuidSchema.safeParse(problemId).success) return [];
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return [];
   const { data, error } = await db.from('solution_summaries').select('*').eq('problem_id', problemId).order('useful_votes', { ascending: false }).order('created_at', { ascending: false }).order('id', { ascending: false });
   if (error) throw error;
@@ -68,7 +68,7 @@ export async function getSolutions(problemId: string): Promise<Solution[]> {
 
 export async function getSolution(id: string): Promise<Solution | null> {
   if (!uuidSchema.safeParse(id).success) return null;
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return null;
   const { data, error } = await db.from('solution_summaries').select('*').eq('id', id).maybeSingle();
   if (error) throw error;
@@ -77,7 +77,7 @@ export async function getSolution(id: string): Promise<Solution | null> {
 
 export async function getHacks(solutionId: string): Promise<Hack[]> {
   if (!uuidSchema.safeParse(solutionId).success) return [];
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return [];
   const { data, error } = await db.from('hack_summaries').select('*').eq('solution_id', solutionId).order('created_at', { ascending: false });
   if (error) throw error;
@@ -86,7 +86,7 @@ export async function getHacks(solutionId: string): Promise<Hack[]> {
 
 export async function getComments(targetType: TargetType, targetId: string): Promise<Comment[]> {
   if (!uuidSchema.safeParse(targetId).success || !['solution', 'hack'].includes(targetType)) return [];
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return [];
   const { data, error } = await db.from('comments').select('*').eq('target_type', targetType).eq('target_id', targetId).order('created_at', { ascending: true });
   if (error) throw error;
@@ -94,7 +94,7 @@ export async function getComments(targetType: TargetType, targetId: string): Pro
 }
 
 export async function getProfileByUsername(username: string): Promise<Profile | null> {
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return null;
   const { data, error } = await db.from('profiles').select('*').eq('username', username).maybeSingle();
   if (error) throw error;
@@ -102,7 +102,7 @@ export async function getProfileByUsername(username: string): Promise<Profile | 
 }
 
 export async function getUserContent(userId: string): Promise<{ problems: Problem[]; solutions: Solution[]; hacks: Hack[] }> {
-  const db = createSupabaseServerClient();
+  const db = await createSupabaseServerClient();
   if (!db) return { problems: [], solutions: [], hacks: [] };
   const [problems, solutions, hacks] = await Promise.all([
     db.from('problem_summaries').select('*').eq('created_by', userId).order('created_at', { ascending: false }),

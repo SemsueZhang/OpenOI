@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: 'OpenOI', description: '算法题解�
 export const dynamic = 'force-dynamic';
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const locale = cookies().get('openoi_locale')?.value === 'en' ? 'en' : 'zh';
+  const locale = (await cookies()).get('openoi_locale')?.value === 'en' ? 'en' : 'zh';
   const { profile } = await getCurrentUser();
   return <html lang={locale}><body className="min-h-screen antialiased"><I18nProvider initialLocale={locale}><SiteHeader username={profile?.username} /><main className="mx-auto min-h-[calc(100vh-8rem)] max-w-[1200px] px-4 py-8 sm:px-6 sm:py-10">{children}</main><SiteFooter/></I18nProvider></body></html>;
 }

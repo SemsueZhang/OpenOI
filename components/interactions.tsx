@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowBigDown, ArrowBigUp, Pencil, Trash2 } from 'lucide-react';
@@ -12,9 +12,16 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import type { ActionResult, Comment, TargetType } from '@/lib/types';
 
-export function VoteButtons({ type, id, authorId, currentUserId, myVote = null, positive, negative }: { type: TargetType; id: string; authorId: string; currentUserId?: string | null; myVote?: number | null; positive: number; negative?: number }) {
+type VoteButtonsProps = { type: TargetType; id: string; authorId: string; currentUserId?: string | null; myVote?: number | null; positive: number; negative?: number };
+
+export function VoteButtons(props: VoteButtonsProps) {
+  const { id, currentUserId, myVote = null, positive, negative } = props;
+  const stateKey = `${id}:${currentUserId ?? ''}:${myVote ?? ''}:${positive}:${negative ?? 0}`;
+  return <VoteButtonsStateful key={stateKey} {...props}/>;
+}
+
+function VoteButtonsStateful({ type, id, authorId, currentUserId, myVote = null, positive, negative }: VoteButtonsProps) {
   const { t } = useI18n(); const router = useRouter(); const lock = useRef(false); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [vote, setLocalVote] = useState(myVote); const [counts, setCounts] = useState({ positive, negative: negative ?? 0 });
-  useEffect(() => { setLocalVote(myVote); setCounts({ positive, negative: negative ?? 0 }); }, [id, currentUserId, myVote, positive, negative]);
   const mine = currentUserId === authorId; const disabled = !currentUserId || mine || busy;
   const apply = async (value: 1 | -1) => {
     if (disabled || lock.current) return; lock.current = true; setBusy(true); setError('');

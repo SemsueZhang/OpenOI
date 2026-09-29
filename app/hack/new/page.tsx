@@ -5,7 +5,8 @@ import { getCurrentUser, getHacks, getSolution } from '@/lib/data';
 import { ConfigNotice } from '@/components/content';
 import { isSupabaseConfigured } from '@/lib/supabase/config';
 
-export default async function NewHackPage({ searchParams }: { searchParams: { solution_id?: string; edit?: string } }) {
+export default async function NewHackPage(props: { searchParams: Promise<{ solution_id?: string; edit?: string }> }) {
+  const searchParams = await props.searchParams;
   if (!isSupabaseConfigured()) return <ConfigNotice/>;
   const { user } = await getCurrentUser();
   const solutionId = searchParams.solution_id;

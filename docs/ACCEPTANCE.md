@@ -4,7 +4,7 @@
 
 ## 已完成的验证
 
-- 依赖安装 `npm ci` 已通过；UI 冻结后的 `npm run typecheck`、`npm run lint`（零警告）、`npm run build` 与测试均通过。本机验证环境为 Node.js 26；项目和 Vercel 推荐 Node.js 22，尚未在 Node.js 22 重复运行全部检查。
+- 依赖安装 `npm ci` 已通过；升级到 Next.js 16.3.6、React 19.3.0 后，已在 Node.js 22.23.3 下重新运行 `npm run typecheck`、`npm run lint`（零警告）、`npm run build` 与测试，均通过。
 - `npm test` 7/7 通过，覆盖原始 HTML、危险 URL、KaTeX、GFM、公式、代码高亮、代码围栏、重定向及用户名/标签校验。
 - `npm run test:db:docker` 已通过：在隔离 Docker PostgreSQL 15 中实际执行最终完整迁移与 `tests/database/acceptance.sql`，包含空投票目标类型拒绝，以及 anon/authenticated 对三个查询视图均无写权限的断言。已验证注册资料触发器、伪造作者/直接修改状态拒绝、匿名写拒绝、越权编辑、孤立目标拒绝、自投拒绝、转票/撤票、状态优先级及级联删除。
 - 实际执行 `scripts/test-db.sh` 的双连接并发场景：同一 Hack 相反投票形成平票；同一 solution 下不同 Hack 并发投票；删除 Hack 与投票竞争。已验证最终票数、状态和级联一致性，测试容器已清理。
@@ -29,9 +29,9 @@
 
 以上浏览器验证在未配置 Supabase 的状态下完成，不能代替真实题目详情、登录、发布、评论、投票及邮件确认的端到端验收。
 
-## 已知部署限制
+## 依赖安全状态
 
-`npm audit` 报告 5 项漏洞（4 high、1 critical）。critical 涉及当前指定的 Next.js 14.2.35，审计建议的修复跨到 Next.js 16；其他报告涉及 ESLint、glob 和 PostCSS 依赖链。未为消除报告擅自改变用户要求的框架主版本。生产上线前应完成安全升级与相应回归；构建和单元测试通过不代表依赖漏洞已经解决。
+项目已从 Next.js 14.2.35、React 18 升级到 Next.js 16.3.6、React 19.3.0，并迁移异步 Request API、Proxy 和 ESLint flat config。升级后的 `npm audit` 未报告已知依赖漏洞；生产上线前仍需复查审计结果并完成下述真实 Supabase 与浏览器流程。
 
 ## 真实部署后仍需验收
 
