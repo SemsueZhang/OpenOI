@@ -62,4 +62,8 @@ bash scripts/test-db-pglite.sh
 
 ## 当前接入记录（2026-09-29）
 
-生产库的一次性历史登记已执行成功，并查询确认上述三个版本全部存在。GitHub 工作流已触发；首次运行在下载测试镜像时被 ECR 限流，脚本已增加官方 Docker Hub 镜像作为备用来源。数据库密钥与首次生产任务仍需完成后才能确认自动迁移可用。
+生产库的一次性历史登记已执行成功，并查询确认上述三个版本全部存在。GitHub 的 Production 环境已限制为 main 分支。
+
+[运行 36585800145](https://github.com/SemsueZhang/OpenOI/actions/runs/36585800145) 的 validate 任务已通过：包含依赖安装、迁移文件校验、连接地址校验测试、隔离 PostgreSQL 15 迁移和权限/内容约束验收。测试镜像优先使用 ECR，限流时改用官方 Docker Hub 来源。
+
+该运行的 deploy 在生产连接地址校验处停止，未连接生产数据库；当时尚未保存 `SUPABASE_DB_URL`。需由用户在 GitHub 保存密钥，再重跑失败任务，成功后才能确认自动迁移已接通。
