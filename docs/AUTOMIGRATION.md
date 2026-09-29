@@ -66,4 +66,4 @@ bash scripts/test-db-pglite.sh
 
 [运行 36585800145](https://github.com/SemsueZhang/OpenOI/actions/runs/36585800145) 的 validate 任务已通过：包含依赖安装、迁移文件校验、连接地址校验测试、隔离 PostgreSQL 15 迁移和权限/内容约束验收。测试镜像优先使用 ECR，限流时改用官方 Docker Hub 来源。
 
-该运行的 deploy 在生产连接地址校验处停止，未连接生产数据库；当时尚未保存 `SUPABASE_DB_URL`。需由用户在 GitHub 保存密钥，再重跑失败任务，成功后才能确认自动迁移已接通。
+随后用户已保存 `SUPABASE_DB_URL`。[运行 36587203403](https://github.com/SemsueZhang/OpenOI/actions/runs/36587203403) 的 validate 再次通过；deploy 在连接串校验处停止，原因是用户名必须为 `postgres.rnwojkpmsmypeaetxknr`。该检查只记录错误类别，不显示密钥，也没有连接生产数据库。需由用户修正完整 URI，再重跑失败任务，成功后才能确认自动迁移已接通。
