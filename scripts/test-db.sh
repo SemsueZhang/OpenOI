@@ -12,4 +12,5 @@ command -v psql >/dev/null || { echo 'psql is required for database acceptance t
 
 psql -X -q -v ON_ERROR_STOP=1 "$OPENOI_TEST_DB_URL" < tests/database/acceptance.sql >/dev/null
 psql -X -q -v ON_ERROR_STOP=1 "$OPENOI_TEST_DB_URL" < tests/database/content_limits.sql >/dev/null
-echo 'Database acceptance and content-limit tests passed'
+psql -X -q -v ON_ERROR_STOP=1 "$OPENOI_TEST_DB_URL" < tests/database/noi_import.sql >/dev/null
+echo 'Database acceptance, content-limit, and NOI import tests passed'

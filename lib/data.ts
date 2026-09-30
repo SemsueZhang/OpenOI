@@ -6,7 +6,7 @@ import { PAGE_SIZE, normalizePage, pageRange } from './pagination';
 
 export { normalizePage } from './pagination';
 function emptyPage<T>(page: number): Paged<T> { return { items: [], page, total: 0, pages: 0 }; }
-type RowWithAuthor = { author_id?: string; created_by?: string; author?: Profile | null };
+type RowWithAuthor = { author_id?: string; created_by?: string | null; author?: Profile | null };
 
 async function attachAuthors<T extends RowWithAuthor>(db: SupabaseClient, rows: T[]): Promise<T[]> {
   const ids = [...new Set(rows.map((row) => row.author_id ?? row.created_by).filter((id): id is string => Boolean(id)))];

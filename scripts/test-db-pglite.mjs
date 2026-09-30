@@ -60,6 +60,8 @@ try {
   await run('scripts/baseline-migration-history.sql', history);
   await run('scripts/baseline-migration-history.sql', history);
   assert.equal((await db.query('select count(*)::int n from supabase_migrations.schema_migrations')).rows[0].n, 3);
+  await run('supabase/migrations/20260930000000_import_noi_problems.sql');
+  await run('tests/database/noi_import.sql');
   await run('tests/database/acceptance.sql');
   await run('tests/database/content_limits.sql');
 } finally {

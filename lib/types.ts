@@ -10,7 +10,7 @@ export interface Profile {
 
 export interface Problem {
   id: string;
-  created_by: string;
+  created_by: string | null;
   title: string;
   source_urls: string[];
   similar_urls: string[];
