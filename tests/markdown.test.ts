@@ -26,6 +26,28 @@ test('GFM, mathematics and code highlighting render safely', () => {
   assert.match(html, /&lt;script&gt;/);
 });
 
+test('TeX math delimiters render inline and display formulas', () => {
+  const html = render(String.raw`Inline \(x^2 + y^2\).
+
+\[\frac{a}{b} = c\]`);
+  assert.match(html, /class="katex"/);
+  assert.match(html, /class="katex-display"/);
+  assert.doesNotMatch(html, /\\\(|\\\[/);
+});
+
+test('TeX delimiters inside code remain literal', () => {
+  const html = render('Use \\(x\\) in prose, but not in `\\(code\\)`.\n\n```tex\n\\[literal\\]\n```');
+  assert.equal((html.match(/class="katex"/g) || []).length, 1);
+  assert.match(html, /\\\[literal\\\]/);
+});
+
+test('multiline display math works while escaped delimiters stay literal', () => {
+  const display = render('Before\n\n\\[\na^2 + b^2 = c^2\n\\]\n\nAfter');
+  assert.match(display, /class="katex-display"/);
+  const escaped = render(String.raw`Literal \\(x\\) and \\[y\\]`);
+  assert.doesNotMatch(escaped, /class="katex"/);
+});
+
 test('code fences preserve C++17, Python, unknown languages and embedded backticks', () => {
   const html = render('```cpp\nstd::cout << "ok";\n```\n\n```python\nprint("ok")\n```\n\n```madeup-language\n<unsafe>\n```\n\n````text\ninside ``` fence\n````');
   assert.match(html, /std::cout/);

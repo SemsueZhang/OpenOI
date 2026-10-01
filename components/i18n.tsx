@@ -24,7 +24,7 @@ const zh = {
   notFoundTitle: '找不到这个页面', notFoundText: '内容可能已删除，或链接有误。', goHome: '返回首页', errorTitle: '页面暂时无法加载', retry: '重试',
   configTitle: '需要连接 Supabase', configText: '请按 README 配置环境变量并初始化数据库，之后即可浏览和发布内容。',
   noPermission: '只有作者可以编辑或删除此内容。', signInRequired: '请先登录以继续。', back: '返回', createdBy: '作者', updated: '更新于',
-  formFailed: '操作失败，请稍后重试。', saving: '保存中…', markdownHint: '支持 Markdown、代码块和数学公式。', userNameHint: '仅小写字母、数字、下划线', deleteConfirm: '删除后无法恢复', footerTagline: '开放的算法，开放的讨论。', confirmError: '确认链接无效或已过期。输入邮箱后可重发确认邮件。', resendConfirmation: '重发确认邮件', resendSent: '如果该邮箱需要确认，我们已发送新的确认链接。',
+  formFailed: '操作失败，请稍后重试。', saving: '保存中…', markdownHint: '支持 Markdown、代码块。公式可用 $...$、$$...$$、\\(...\\) 或 \\[...\\]。', userNameHint: '仅小写字母、数字、下划线', deleteConfirm: '删除后无法恢复', footerTagline: '开放的算法，开放的讨论。', confirmError: '确认链接无效或已过期。输入邮箱后可重发确认邮件。', resendConfirmation: '重发确认邮件', resendSent: '如果该邮箱需要确认，我们已发送新的确认链接。',
 } as const;
 
 const en: Record<keyof typeof zh, string> = {
@@ -46,7 +46,7 @@ const en: Record<keyof typeof zh, string> = {
   notFoundTitle: 'Page not found', notFoundText: 'This content may have been deleted, or the link is incorrect.', goHome: 'Back to home', errorTitle: 'Unable to load this page', retry: 'Try again',
   configTitle: 'Connect Supabase', configText: 'Set environment variables and initialize the database as described in the README to browse and post content.',
   noPermission: 'Only the author can edit or delete this content.', signInRequired: 'Please log in to continue.', back: 'Back', createdBy: 'By', updated: 'Updated',
-  formFailed: 'Something went wrong. Please try again.', saving: 'Saving…', markdownHint: 'Markdown, code blocks, and math are supported.', userNameHint: 'Lowercase letters, numbers, and underscores only', deleteConfirm: 'This cannot be undone', footerTagline: 'Open algorithms, open discussion.', confirmError: 'This confirmation link is invalid or expired. Enter your email to request a new one.', resendConfirmation: 'Resend confirmation email', resendSent: 'If this account needs confirmation, we sent a new link.',
+  formFailed: 'Something went wrong. Please try again.', saving: 'Saving…', markdownHint: 'Markdown and code blocks supported. Use $...$, $$...$$, \\(...\\), or \\[...\\] for math.', userNameHint: 'Lowercase letters, numbers, and underscores only', deleteConfirm: 'This cannot be undone', footerTagline: 'Open algorithms, open discussion.', confirmError: 'This confirmation link is invalid or expired. Enter your email to request a new one.', resendConfirmation: 'Resend confirmation email', resendSent: 'If this account needs confirmation, we sent a new link.',
 };
 
 type Key = keyof typeof zh;

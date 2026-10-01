@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import { normalizeMathDelimiters } from '@/lib/markdown-math';
 
 function safeUrl(url: string, image: boolean) {
   try {
@@ -28,7 +29,7 @@ export function Markdown({ children, className = '' }: { children: string; class
         // eslint-disable-next-line @next/next/no-img-element
         img: ({ node: _node, src, alt, ...props }) => typeof src === 'string' && safeUrl(src, true) ? <img {...props} src={src} alt={alt || ''} loading="lazy" /> : null,
       }}>
-      {children}
+      {normalizeMathDelimiters(children)}
     </ReactMarkdown>
   </div>;
 }
